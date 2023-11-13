@@ -10,13 +10,12 @@ import pandas as pd
 # then it asks whether they'd like to search for a partial match or not.
 
 # TODO: Intro to the programme
-# Welcome the user to the programme, introduce what the programme does and what input it will take from the user
+# welcome the user to the programme, introduce what the programme does and what input it will take from the user
 print("Welcome to the E-Search programme!"
       "\nThis programme is used for searching protein sequences within the protein database"
       "\nIt will start by asking the user to specify their search terms, and this can be either of the following:"
-      "\n1) The taxonomic group name, "
-      "\n2) A refined search term, OR"
-      "\n3) The UID of the protein of interest"
+      "\n1) The taxonomic group name, OR"
+      "\n2) The UID of the protein of interest, if you know it."
       "\nIf you need to redefine the search terms, you can use CTRL + C to abort the programme")
 #TODO: WHAT IS UID.....
 #TODO: WHAT IS REFINED SEARCH TERMS
@@ -34,8 +33,8 @@ print("Text search strings entered into the Entrez system are converted into Ent
       "and then each term is parsed independently. The results of these searches are then combined according to the Boolean operators.")
 
 
-##### PROCESS STEP 1: GET USER INITIAL INPUT #####
-## This step takes the user's input and store it as a variable so that it can be fed into the esearch commandline
+##### PROCESS STEP 1: GET USER INITIAL INPUT OF TAXONOMY #####
+## This step takes the user's TAXONOMY input and store it as a variable
 
 # define a function to get confirmation from the user as to whether they'd like to proceed (This function is universal to be used in different situations)
 def get_confirmation():
@@ -54,22 +53,42 @@ def get_confirmation():
 def protein_esearch(search_term):
     '''This function performs an esearch within the NCBI protein database given a valid input and outputs the fasta
     sequence of the protein specified.'''
-    user_result = subprocess.getoutput("esearch -db protein -spell -query " + '"' + str(search_term) + '"' + "| efetch -format fasta")
+    while True:
+        # count the number of results or sequences found using search_term, use this to quality check the search term
+        seq_count = subprocess.getoutput("esearch -db protein -spell -query " +'"'+ str(search_term)+'"'+ "| grep 'Count'")
+        # the esearch result for the number of sequences found is typically in the form of <Count>1234</Count>
+        seq_count = seq_count.replace("<Count>", "")
+        seq_count = seq_count.replace("</Count>", "")
+        # if seq_count is more than 1000, then the user needs to refine their search term
+        if int(seq_count) > 1000:
+            print("Your search term resulted in more than 1000 results. Please refine your search term."
+                  "\nYour search term was", search_term)
+            search_term = input("Please enter a new search term: ")
+        else:
+            break
+    # run esearch in the protein database on the commandline and save it to user_result
+    esearch_result = subprocess.getoutput("esearch -db protein -spell -query " + '"' + str(search_term) + '"' + "| efetch -format fasta")
+
     # this will print all the fasta sequences found to the screen
-    print(user_result)
-    # save the output to a file
+    print(esearch_result)
+    # ask the user if they'd like to save the output to a file
     while True:
         save_output = input("Would you like to save this output to your local directory? (y/n)").lower()
         if save_output == 'y':
+            # the file_name cannot contain any special characters or spaces, so remove any from the search term
+            file_name = search_term.replace(" ", "_")
+            file_name = (file_name.replace("[", "").replace("]", "").replace("'", "")
+                         .replace(",", "").replace(".", "").replace("-", "")
+                         .replace("*", ""))
             # save the output to a file
-            with open(f"{search_term}.fasta", "w") as f:
-                f.write(user_result)
+            with open(f"{file_name}.fasta", "w") as f:
+                f.write(esearch_result)
                 f.close()
-                print(f"Output saved to {search_term}.fasta")
-            return user_result
+                print(f"Output saved to {file_name}.fasta")
+            return esearch_result
         elif save_output == 'n':
             print("Output not saved")
-            return user_result
+            return esearch_result
 
 # define a function to check the quality of the user's input
 def quality_check_user_input(user_input):
@@ -81,8 +100,8 @@ def quality_check_user_input(user_input):
         print("No input was given.")
         return False
 
-    # run esearch on the commandline and save it to esearch_user_input
-    esearch_user_input = subprocess.getoutput("esearch -db protein -spell -query "+'"' + str(user_input) +'"'+"| efetch -format fasta")
+    # run esearch in the taxonomy database on the commandline and save it to esearch_user_input
+    esearch_user_input = subprocess.getoutput("esearch -db taxonomy -spell -query "+'"' + str(user_input) +'"'+"| efetch")
 
     # if esearch returns an empty line on NCBI, return False
     if re.search("^$", esearch_user_input):
@@ -107,7 +126,7 @@ def quality_check_user_uid(user_input):
         return False
 
     try:
-        # run esearch on the commandline and save it to esearch_user_input
+        # run esearch in the protein database on the commandline and save it to esearch_user_input
         esearch_user_input = subprocess.getoutput("esearch -db protein -spell -query "+'"' + str(user_input) +'"'+"| efetch -format fasta")
     except subprocess.CalledProcessError as e:
         print(
@@ -173,7 +192,7 @@ def get_input():
     # ask the user if they'd like to search for a UID or start from a taxonomy group
     while True:
         # ask the user if the search term is a UID or a defined search term
-        user_search_type = input("Is your search term a UID? (y/n)").lower()
+        user_search_type = input("Is your search term a protein UID? (y/n)").lower()
         # if the search term entered by the user is a TAXONOMIC GROUP i.e. not UID
         if user_search_type == 'n':
             # pass through the function to check the quality of the user's input
@@ -188,7 +207,6 @@ def get_input():
             # exiting the programme so that UID input is not used for future functions
             sys.exit(0)
 
-
         # if the search type is not properly defined
         else:
             print("Invalid input. Please enter 'y' or 'n'")
@@ -201,12 +219,12 @@ try:
 except KeyboardInterrupt:
     print("\nProgramme interrupted by the user.")
     sys.exit(0)
-##### END OF GET USER INITIAL INPUT #####
+##### END OF GET USER INITIAL INPUT FOR TAXONOMY #####
 
-##### START OF REFINE SEARCH TERMS #####
+##### START OF REFINE TAXONOMY SEARCH TERMS #####
 # define a function to get the scientific names of the taxonomic groups
 def get_scientific_names(user_input):
-    '''The function takes user_input as an input and returns 4 outputs:
+    '''The function takes user_input (taxonomic group) as an input and returns 4 outputs:
     result_name_list: a list of scientific names of the taxonomic groups
     result_len: the length of the scientific_name_list
     result_name: a string of scientific names of the taxonomic groups
@@ -225,13 +243,9 @@ def get_scientific_names(user_input):
     # if esearch returns error or warning on NCBI, return False, else True (e.g. if user_input is a protein)
     if "FAILURE" in user_result or "WARNING" in user_result or "ERROR" in user_result:
         print("Failure, warning or error was returned, possibly due to input not being a taxonomic group..."
-              "\nTrying to remediate by searching in the protein database...")
-        user_result = subprocess.getoutput("esearch -db protein -spell -query " + str(user_input) + "| efetch -format fasta")
-
-
-        #TODO: Consider what to do if a protein was provided... Maybe return the number of fasta sequences found?
-        return user_result
-
+              "\nPlease check your input spelling and try again!"
+              "\nYour input was",str(user_input))
+        sys.exit(1)
 
     # saving every item within scientific_names into a list
     result_name = result_name.splitlines()  # splitting the list into a list of scientific names
@@ -256,26 +270,12 @@ def get_scientific_names(user_input):
     #       user_result)
     return result_name_dict, result_len, result_name, user_result
 
-# execute get_scientific_names to save the outputs as global variables, result_name_dict is the most important one as it will be used to select and refine search terms
+# execute get_scientific_names to save the outputs as global variables,
+# result_name_dict is the most important one as it will be used to select and refine search terms
 result_name_dict, result_len, result_name, user_result = get_scientific_names(user_input)
 
-# saving a long paragraph of instruction in a function to avoid redundancy
-def print_refining_instructions():
-    print("Text search strings entered into the Entrez system are converted into Entrez queries with the following format:"
-      "\n   term1[field1] Op term2[field2] Op term3[field3] Op ..."
-      "\nwhere the terms are search terms, each limited to a particular Entrez field in square brackets, "
-      "combined using one of three Boolean operators: Op = AND, OR, or NOT. "
-      "\nThese Boolean operators must be typed in all capital letters."
-      "\n   Example: human[ORGN] AND topoisomerase[PROT]"
-      "\nEntrez initially splits the query into a series of items that were originally separated by spaces in the query;"
-      "therefore it is critical that spaces separate each term and Boolean operator. "
-      "If the query consists only of a list of UID numbers (unique identifiers) or accession numbers, "
-      "the Entrez system simply returns the corresponding records and no further parsing is performed. "
-      "If the query contains any Boolean operators (AND, OR, or NOT), the query is split into the terms separated by these operators, "
-      "and then each term is parsed independently. The results of these searches are then combined according to the Boolean operators.")
-
-# define a function to refine search term
-def refine_search_terms(user_input):
+# define a function to refine the taxonomy search term
+def refine_tax_search_terms(user_input):
     result_name_dict, result_len, result_name, user_result = get_scientific_names(user_input)
     while True:
         # if the result_name_list is empty, then the user has not specified a valid taxonomic group and they need to specify the input again
@@ -297,15 +297,16 @@ def refine_search_terms(user_input):
             # if the user would like to proceed, then we can go ahead with the user_input
             if user_confirmation == True:
                 result_name = result_name_dict[0]
-                print("Thank you, proceeding with ", user_input)
+                print("Thank you, proceeding with the taxonomic group ", result_name)
                 return result_name
+
             # if the user does not want to proceed, then we can further refine the search
             elif user_confirmation == False:
                 print("Let's refine your results further...")
                 # refining the existing parameters
-                print_refining_instructions()
+                # print_refining_instructions()
                 print("Your initial search term was ", user_input,
-                      "\nPlease update your search term (this will overwrite the initial search term)")
+                      "\nPlease update your search term (this will take you back to the start of the programme)")
                 user_input = get_input()
                 print("Your updated search term is ", user_input)
                 # ask the user if they'd like to proceed with the updated search term
@@ -313,8 +314,7 @@ def refine_search_terms(user_input):
                 result_name_dict, result_len, result_name, user_result = get_scientific_names(user_input)
                 # if the user would like to proceed, then we can go ahead with the user_input
                 if user_confirmation == True:
-                    result_name = result_name_dict[0]
-                    print("Thank you, proceeding with ", user_input)
+                    print("Thank you, proceeding with taxonomic group ", result_name)
                     return result_name
                 # if the user does not want to proceed, then exit the programme.
                 else:
@@ -326,49 +326,56 @@ def refine_search_terms(user_input):
         if len(result_name_dict) > 1:
             print("You have specified the taxonomic groups: ", result_name_dict,
                   # TODO: with x number of results on NCBI,
-                  "\nNow you can choose to proceed further with the search using multiple taxonomic groups OR refine your search further"
-                  "\n(We recommend you to choose between the results,as using multiple taxonomic groups usually produce 'fluffy' results later on!")
+                  "\nNow you should choose one of the taxonomic groups from the above.")
+            # allow the user to choose one value from the dictionary result_name_dict
+            print(result_name_dict)
+            # while loop to take a valid index from the dictionary result_name_dict
+            while True:
+                try:
+                    result_name = result_name_dict[int(input("Please choose one taxnomic group from the above, enter its index:"))]
+                    break
+                except:
+                    print("Please enter a valid index.")
+            print("Your updated search term is ", result_name)
+            # ask the user if they'd like to proceed with the updated search term
             user_confirmation = get_confirmation()
             # print(user_confirmation)  # debug line
             # if the user would like to proceed, then we can go ahead with the user_input
             if user_confirmation == True:
-                result_name_dict, result_len, result_name, user_result = get_scientific_names(user_input)
-                # result_name will be everything in result_name_dict
-                result_name = result_name_dict
-                print("Thank you, proceeding with ", user_input)
+                result_name = result_name_dict[0]
+                print("Thank you, proceeding with taxonomic group ", result_name)
                 return result_name
-            # if the user does not want to proceed, then we can further refine the search
-            elif user_confirmation == False:
-                print("Let's refine your results further...")
-                result_name_dict, result_len, result_name, user_result = get_scientific_names(user_input)
-                # allow the user to choose one value from the dictionary result_name_dict
-                print(result_name_dict)
-                # while loop to take a valid index from the dictionary result_name_dict
-                while True:
-                    try:
-                        result_name = result_name_dict[int(input("Please choose one taxnomic group from the above, enter its index:"))]
-                        break
-                    except:
-                        print("Please enter a valid index.")
-                # refining the existing parameters
-                print("Let's refine your results even further...")
-                print_refining_instructions()
-                print("Your initial search term was ", user_input)
-                user_input = get_input(
-                    "Please update your search term (this will overwrite the initial search term):")
-                print("Your updated search term is ", user_input)
-                # ask the user if they'd like to proceed with the updated search term
-                user_confirmation = get_confirmation()
-                # print(user_confirmation)  # debug line
-                # if the user would like to proceed, then we can go ahead with the user_input
-                if user_confirmation == True:
-                    result_name = result_name_dict[0]
-                    print("Thank you, proceeding with ", result_name)
-                    return result_name
-                # if the user does not want to proceed, then exit the programme.
-                else:
-                    print("Thank you for using the programme.")
-                    sys.exit(0)
-user_input = refine_search_terms(user_input)
+            # if the user does not want to proceed, then exit the programme.
+            else:
+                print("Thank you for using the programme.")
+                sys.exit(0)
+# get the user input (taxonomic group) and refine it
+user_input = refine_tax_search_terms(user_input)
+
+# define a function which takes the protein type as a further input before saving both user_input and protein_type
+# as search_term to use in protein_esearch()
+def get_search_term():
+    '''This function takes the protein type as a further input before saving both user_input and protein_type into search_term
+    It returns the search term as a string
+    user_input: the taxonomic group
+    protein_type: the protein type
+    search_term: user_input AND protein_type
+    '''
+    # get the protein type from the user
+    protein_type = input("Please enter the specific protein you'd like to search for: ")
+    # get the user_input and protein_type as search_term
+    search_term = str(str(user_input)+ "[ORGN]"+" AND " + str(protein_type) + "[PROT]")
+    # print(search_term)  # debug line
+    return search_term
+
+# get the search term
+search_term = get_search_term()
+# use protein_esearch() to search for the search term on NCBI
+esearch_result = protein_esearch(search_term)
+
+# count the number of results for the user_input, use this to quality check the search term
+seq_count = subprocess.getoutput("esearch -db protein -spell -query 'birds[ORGN] AND glucose-6-phosphatase[PROT]' | grep 'Count'")
+
+
 
 #############################################################
