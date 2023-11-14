@@ -9,8 +9,9 @@ def protein_esearch(search_term):
         seq_count = seq_count.replace("<Count>", "")
         seq_count = seq_count.replace("</Count>", "")
         # if seq_count is more than 1000, then the user needs to refine their search term
-        if int(seq_count) > 1000:
-            print("Your search term resulted in more than 1000 results. Please refine your search term."
+        if int(seq_count) > 1000 or int(seq_count) == 0:
+            print("Your search term returned ",seq_count, " results.")
+            print("This is either more than 1000 results or did not return any result. Please refine your search term."
                   "\nYour search term was", search_term)
             search_term = input("Please enter a new search term: ")
         else:
@@ -20,6 +21,7 @@ def protein_esearch(search_term):
 
     # this will print all the fasta sequences found to the screen
     print(esearch_result)
+
     # ask the user if they'd like to save the output to a file
     while True:
         save_output = input("Would you like to save this output to your local directory? (y/n)").lower()
@@ -39,4 +41,4 @@ def protein_esearch(search_term):
             print("Output not saved")
             return esearch_result
 
-protein_esearch(search_term="birds[ORGN] AND kinase[PROT]")
+protein_esearch("birds[ORGN] AND glucose-6-phosphatase[PROT] NOT PARTIAL")

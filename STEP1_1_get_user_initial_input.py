@@ -49,47 +49,6 @@ def get_confirmation():
         else:
             print("Invalid input. Please enter 'y' or 'n'")
 
-# define a function to perform an esearch within the NCBI protein database given a valid input and outputs the fasta sequence of the protein specified.
-def protein_esearch(search_term):
-    '''This function performs an esearch within the NCBI protein database given a valid input and outputs the fasta
-    sequence of the protein specified.'''
-    while True:
-        # count the number of results or sequences found using search_term, use this to quality check the search term
-        seq_count = subprocess.getoutput("esearch -db protein -spell -query " +'"'+ str(search_term)+'"'+ "| grep 'Count'")
-        # the esearch result for the number of sequences found is typically in the form of <Count>1234</Count>
-        seq_count = seq_count.replace("<Count>", "")
-        seq_count = seq_count.replace("</Count>", "")
-        # if seq_count is more than 1000, then the user needs to refine their search term
-        if int(seq_count) > 1000:
-            print("Your search term resulted in more than 1000 results. Please refine your search term."
-                  "\nYour search term was", search_term)
-            search_term = input("Please enter a new search term: ")
-        else:
-            break
-    # run esearch in the protein database on the commandline and save it to user_result
-    esearch_result = subprocess.getoutput("esearch -db protein -spell -query " + '"' + str(search_term) + '"' + "| efetch -format fasta")
-
-    # this will print all the fasta sequences found to the screen
-    print(esearch_result)
-    # ask the user if they'd like to save the output to a file
-    while True:
-        save_output = input("Would you like to save this output to your local directory? (y/n)").lower()
-        if save_output == 'y':
-            # the file_name cannot contain any special characters or spaces, so remove any from the search term
-            file_name = search_term.replace(" ", "_")
-            file_name = (file_name.replace("[", "").replace("]", "").replace("'", "")
-                         .replace(",", "").replace(".", "").replace("-", "")
-                         .replace("*", ""))
-            # save the output to a file
-            with open(f"{file_name}.fasta", "w") as f:
-                f.write(esearch_result)
-                f.close()
-                print(f"Output saved to {file_name}.fasta")
-            return esearch_result
-        elif save_output == 'n':
-            print("Output not saved")
-            return esearch_result
-
 # define a function to check the quality of the user's input
 def quality_check_user_input(user_input):
     '''This function checks the quality of the user's input. It checks whether the user has specified a valid taxonomic group or not.
@@ -114,6 +73,75 @@ def quality_check_user_input(user_input):
         return False
     else:
         return True
+
+# define a function to check the quality of the user's input
+def quality_check_search_term(search_term):
+    '''This function checks the quality of the user's search term. It checks whether the user has specified a valid
+    search term. If the user has specified a valid taxonomic group, then the function returns True, otherwise it returns False.'''
+    # screen for invalid inputs
+    # if the user_input is empty, then the user has not specified a taxonomic group and they need to specify the input again
+    if re.search("^$", search_term):  # using re, search for anything that contains nothing betweent the start and end of the string
+        print("No input was given.")
+        return False
+
+    # run esearch in the protein database on the commandline and save its Count number to esearch_user_input
+    esearch_search_term = subprocess.getoutput("esearch -db protein -spell -query "+'"' + str(search_term) +'"'+"| grep 'Count'")
+
+    # if esearch returns an empty line on NCBI, return False
+    if re.search("^$", esearch_search_term):
+        print("No result was found with that input")
+        return False
+
+    # if esearch returns a warning or error on NCBI, return False, else True
+    if "FAILURE" in esearch_search_term or "WARNING" in esearch_search_term or "ERROR" in esearch_search_term or "0" in esearch_search_term:
+        print("Failure, warning or error was returned")
+        return False
+    else:
+        return True
+
+# define a function to perform an esearch within the NCBI protein database given a valid input and outputs the fasta sequence of the protein specified.
+def protein_esearch(search_term):
+    '''This function performs an esearch within the NCBI protein database given a valid input and outputs the fasta
+    sequence of the protein specified.'''
+    while True:
+        # count the number of results or sequences found using search_term, use this to quality check the search term
+        seq_count = subprocess.getoutput("esearch -db protein -spell -query " +'"'+ str(search_term)+'"'+ "| grep 'Count'")
+        # the esearch result for the number of sequences found is typically in the form of <Count>1234</Count>
+        seq_count = seq_count.replace("<Count>", "")
+        seq_count = seq_count.replace("</Count>", "")
+        # if seq_count is more than 1000, then the user needs to refine their search term
+        if int(seq_count) > 1000 or int(seq_count) == 0:
+            print("Your search term returned ",seq_count, " results.")
+            print("This is either more than 1000 results or did not return any result. Please refine your search term."
+                  "\nYour search term was", search_term)
+            search_term = input("Please enter a new search term: ")
+        else:
+            break
+    # run esearch in the protein database on the commandline and save it to user_result
+    esearch_result = subprocess.getoutput("esearch -db protein -spell -query " + '"' + str(search_term) + '"' + "| efetch -format fasta")
+
+    # this will print all the fasta sequences found to the screen
+    print(esearch_result)
+
+    # ask the user if they'd like to save the output to a file
+    while True:
+        print("Your search term returned ", seq_count, " results.")
+        save_output = input("Would you like to save this output to your local directory? (y/n)").lower()
+        if save_output == 'y':
+            # the file_name cannot contain any special characters or spaces, so remove any from the search term
+            file_name = search_term.replace(" ", "_")
+            file_name = (file_name.replace("[", "").replace("]", "").replace("'", "")
+                         .replace(",", "").replace(".", "").replace("-", "")
+                         .replace("*", ""))
+            # save the output to a file
+            with open(f"{file_name}.fasta", "w") as f:
+                f.write(esearch_result)
+                f.close()
+                print(f"Output saved to {file_name}.fasta")
+            return esearch_result
+        elif save_output == 'n':
+            print("Output not saved")
+            return esearch_result
 
 # define a function to check the quality of the user's UID input
 def quality_check_user_uid(user_input):
@@ -325,7 +353,6 @@ def refine_tax_search_terms(user_input):
         # and the programme will recommend the user to choose between the results
         if len(result_name_dict) > 1:
             print("You have specified the taxonomic groups: ", result_name_dict,
-                  # TODO: with x number of results on NCBI,
                   "\nNow you should choose one of the taxonomic groups from the above.")
             # allow the user to choose one value from the dictionary result_name_dict
             print(result_name_dict)
@@ -363,19 +390,29 @@ def get_search_term():
     '''
     # get the protein type from the user
     protein_type = input("Please enter the specific protein you'd like to search for: ")
-    # get the user_input and protein_type as search_term
-    search_term = str(str(user_input)+ "[ORGN]"+" AND " + str(protein_type) + "[PROT]")
-    # print(search_term)  # debug line
-    return search_term
+
+    # ask the user if the protein is partial or not
+    partial_protein = input("Is the protein partial? (y/n)").lower()
+    # if the protein is partial, then we need to add "PARTIAL" at the end of search_term, elif not partial: "NOT PARTIAL"
+    if partial_protein == 'y':
+        partial_protein = "PARTIAL"
+        search_term = str(str(user_input) + "[ORGN]" + " AND " + str(protein_type) + "[PROT] "+str(partial_protein))
+        print("Your search term is ", search_term)  # debug line
+        return search_term
+    elif partial_protein == 'n':
+        partial_protein = "NOT PARTIAL"
+        search_term = str(str(user_input) + "[ORGN]" + " AND " + str(protein_type) + "[PROT] "+str(partial_protein))
+        print("Your search term is ", search_term)  # debug line
+        return search_term
+    else:
+        # get the user_input and protein_type as search_term
+        search_term = str(str(user_input) + "[ORGN]" + " AND " + str(protein_type) + "[PROT]")
+        print("Your search term is ",search_term)  # debug line
+        return search_term
 
 # get the search term
 search_term = get_search_term()
 # use protein_esearch() to search for the search term on NCBI
 esearch_result = protein_esearch(search_term)
-
-# count the number of results for the user_input, use this to quality check the search term
-seq_count = subprocess.getoutput("esearch -db protein -spell -query 'birds[ORGN] AND glucose-6-phosphatase[PROT]' | grep 'Count'")
-
-
 
 #############################################################
