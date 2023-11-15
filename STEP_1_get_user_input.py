@@ -5,6 +5,7 @@ import sys
 import re
 import numpy as np
 import pandas as pd
+##### STEP 1: GET USER INPUT ####
 # the following script takes an input from the user, asking them which database they'd like to search from
 # and then asks them which search item they'd like to search for and what search type this search item is.
 # then it asks whether they'd like to search for a partial match or not.
@@ -16,24 +17,10 @@ print("Welcome to the E-Search programme!"
       "\nIt will start by asking the user to specify their search terms, and this can be either of the following:"
       "\n1) The taxonomic group name, OR"
       "\n2) The UID of the protein of interest, if you know it."
-      "\nIf you need to redefine the search terms, you can use CTRL + C to abort the programme")
+      "\nYou can use CTRL + C to abort the programme at any point and restart the programme.")
 #TODO: WHAT IS UID.....
-#TODO: WHAT IS REFINED SEARCH TERMS
-print("Text search strings entered into the Entrez system are converted into Entrez queries with the following format:"
-      "\n   term1[field1] Op term2[field2] Op term3[field3] Op ..."
-      "\nwhere the terms are search terms, each limited to a particular Entrez field in square brackets, "
-      "combined using one of three Boolean operators: Op = AND, OR, or NOT. "
-      "\nThese Boolean operators must be typed in all capital letters."
-      "\n   Example: human[organism] AND topoisomerase[protein name]"
-      "\nEntrez initially splits the query into a series of items that were originally separated by spaces in the query;"
-      "therefore it is critical that spaces separate each term and Boolean operator. "
-      "If the query consists only of a list of UID numbers (unique identifiers) or accession numbers, "
-      "the Entrez system simply returns the corresponding records and no further parsing is performed. "
-      "If the query contains any Boolean operators (AND, OR, or NOT), the query is split into the terms separated by these operators, "
-      "and then each term is parsed independently. The results of these searches are then combined according to the Boolean operators.")
 
-
-##### PROCESS STEP 1: GET USER INITIAL INPUT OF TAXONOMY #####
+##### PROCESS STEP 1_1: GET USER INITIAL INPUT OF TAXONOMY #####
 ## This step takes the user's TAXONOMY input and store it as a variable
 
 # define a function to get confirmation from the user as to whether they'd like to proceed (This function is universal to be used in different situations)
@@ -99,6 +86,7 @@ def quality_check_search_term(search_term):
     else:
         return True
 
+file_name = ""
 # define a function to perform an esearch within the NCBI protein database given a valid input and outputs the fasta sequence of the protein specified.
 def protein_esearch(search_term):
     '''This function performs an esearch within the NCBI protein database given a valid input and outputs the fasta
@@ -114,7 +102,10 @@ def protein_esearch(search_term):
             print("Your search term returned ",seq_count, " results.")
             print("This is either more than 1000 results or did not return any result. Please refine your search term."
                   "\nYour search term was", search_term)
-            search_term = input("Please enter a new search term: ")
+            search_term = input("The search term should be in the format of "
+                                "\nOrganism[ORGN] AND Protein[PROT]"
+                                "\nYou can also specify a non-partial search term, e.g., Organism[ORGN] AND Protein[PROT] NOT PARTIAL"
+                                "\nPlease enter a new search term:")
         else:
             break
     # run esearch in the protein database on the commandline and save it to user_result
@@ -123,25 +114,20 @@ def protein_esearch(search_term):
     # this will print all the fasta sequences found to the screen
     print(esearch_result)
 
-    # ask the user if they'd like to save the output to a file
-    while True:
-        print("Your search term returned ", seq_count, " results.")
-        save_output = input("Would you like to save this output to your local directory? (y/n)").lower()
-        if save_output == 'y':
-            # the file_name cannot contain any special characters or spaces, so remove any from the search term
-            file_name = search_term.replace(" ", "_")
-            file_name = (file_name.replace("[", "").replace("]", "").replace("'", "")
-                         .replace(",", "").replace(".", "").replace("-", "")
-                         .replace("*", ""))
-            # save the output to a file
-            with open(f"{file_name}.fasta", "w") as f:
-                f.write(esearch_result)
-                f.close()
-                print(f"Output saved to {file_name}.fasta")
-            return esearch_result
-        elif save_output == 'n':
-            print("Output not saved")
-            return esearch_result
+    # save the output to a file
+    print("Your search term returned ", seq_count, " results.")
+
+    # the file_name cannot contain any special characters or spaces, so remove any from the search term
+    file_name = search_term.replace(" ", "_")
+    file_name = (file_name.replace("[", "").replace("]", "").replace("'", "")
+                 .replace(",", "").replace(".", "").replace("-", "")
+                 .replace("*", ""))
+    # save the output to a file
+    with open(f"{file_name}.fasta", "w") as f:
+        f.write(esearch_result)
+        f.close()
+        print(f"Output saved to {file_name}.fasta in your current working directory.")
+    return esearch_result,file_name
 
 # define a function to check the quality of the user's UID input
 def quality_check_user_uid(user_input):
@@ -239,7 +225,6 @@ def get_input():
         else:
             print("Invalid input. Please enter 'y' or 'n'")
 
-
 # save user_input as a global variable, but also allow the user to interrupt the programme
 try:
     user_input = get_input()
@@ -247,9 +232,9 @@ try:
 except KeyboardInterrupt:
     print("\nProgramme interrupted by the user.")
     sys.exit(0)
-##### END OF GET USER INITIAL INPUT FOR TAXONOMY #####
+##### END OF PROCESS STEP 1_1 GET USER INITIAL INPUT FOR TAXONOMY #####
 
-##### START OF REFINE TAXONOMY SEARCH TERMS #####
+##### PROCESS STEP 1_2 REFINE USER INPUT #####
 # define a function to get the scientific names of the taxonomic groups
 def get_scientific_names(user_input):
     '''The function takes user_input (taxonomic group) as an input and returns 4 outputs:
@@ -377,7 +362,11 @@ def refine_tax_search_terms(user_input):
                 print("Thank you for using the programme.")
                 sys.exit(0)
 # get the user input (taxonomic group) and refine it
-user_input = refine_tax_search_terms(user_input)
+try:
+    user_input = refine_tax_search_terms(user_input)
+except KeyboardInterrupt:
+    print("\nProgramme interrupted by the user.")
+    sys.exit(0)
 
 # define a function which takes the protein type as a further input before saving both user_input and protein_type
 # as search_term to use in protein_esearch()
@@ -411,8 +400,43 @@ def get_search_term():
         return search_term
 
 # get the search term
-search_term = get_search_term()
+try:
+    search_term = get_search_term()
+except KeyboardInterrupt:
+    print("\nProgramme interrupted by the user.")
+    sys.exit(0)
+
 # use protein_esearch() to search for the search term on NCBI
-esearch_result = protein_esearch(search_term)
+try:
+    esearch_result,file_name = protein_esearch(search_term)
+except KeyboardInterrupt:
+    print("\nProgramme interrupted by the user.")
+    sys.exit(0)
+##### END OF PROCESS STEP 1_2 REFINE SEARCH TERMS #####
+##### END OF STEP 1 #####
+
+##### STEP 2 PLOTTING THE LEVEL OF CONSERVATION BETWEEN THE PROTEIN SEQUENCES ####
+
+# the fasta sequence of the protein asked for is saved in esearch_result and the fasta file saved in file_name.fasta
+
+
+def plot_conservation():
+    '''This function plots the level of conservation between the protein sequences
+    sequences: the fasta sequence of the protein asked for
+    '''
+    print("Preparing your plot, please wait...")
+
+    subprocess.call("clustalo --infile="+str(file_name)+".fasta --outfile="+ str(file_name)+ ".msf --threads=200 --force", shell = True)
+    # sprotein1 specifies whether the sequence is a protein
+    subprocess.call("plotcon -sequences "+str(file_name)+".msf -sprotein1 True -winsize 4 -graph pdf -goutfile "+str(file_name), shell = True)
+    # save as file_name.pdf and file_name.1.png .1 is added because only then it can be opened by eog
+    subprocess.call("plotcon -sequences " + str(file_name) + ".msf -sprotein1 True -winsize 4 -graph png -goutfile " + str(file_name), shell=True)
+    subprocess.call("eog "+str(file_name)+".1.png", shell=True)
+
+# use the plot_conservation() function to plot the level of conservation between the protein sequences
+plot_conservation()
+
+
+
 
 #############################################################
