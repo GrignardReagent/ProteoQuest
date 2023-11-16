@@ -3,6 +3,8 @@ import os
 import subprocess
 import sys
 import re
+import time
+
 import numpy as np
 import pandas as pd
 ##### STEP 1: GET USER INPUT ####
@@ -16,7 +18,8 @@ print("Welcome to the E-Search programme!"
       "\nThis programme is used for searching protein sequences within the protein database"
       "\nIt will start by asking the user to specify their search terms, and this can be either of the following:"
       "\n1) The taxonomic group name, OR"
-      "\n2) The UID of the protein of interest, if you know it."
+      "\n2) The UID* or the GI number of the protein of interest, if you know it."
+      "\n *UID = Unique Identifier; GI = UID common name for proteins"
       "\nYou can use CTRL + C to abort the programme at any point and restart the programme.")
 #TODO: WHAT IS UID.....
 
@@ -127,7 +130,8 @@ def protein_esearch(search_term):
         f.write(esearch_result)
         f.close()
         print(f"Output saved to {file_name}.fasta in your current working directory.")
-    return esearch_result,file_name
+        print("If you entered a UID, please execute the script for the next step.")
+    return esearch_result,file_name, seq_count
 
 # define a function to check the quality of the user's UID input
 def quality_check_user_uid(user_input):
@@ -190,8 +194,8 @@ def user_input_UID_True():
             print("The UID you have specified is valid.")
             print(f"The UID you have specified is: {user_input}")
             print("Please wait...")
-            result = protein_esearch(user_input)
-            return result
+            esearch_result,file_name, seq_count = protein_esearch(user_input)
+            return esearch_result
         # if the user has not specified a valid taxonomic group then they need to specify the input again
         else:
             print("The UID you have specified is not valid. Please try again.")
@@ -408,19 +412,58 @@ except KeyboardInterrupt:
 
 # use protein_esearch() to search for the search term on NCBI
 try:
-    esearch_result,file_name = protein_esearch(search_term)
+    esearch_result,file_name, seq_count = protein_esearch(search_term)
 except KeyboardInterrupt:
     print("\nProgramme interrupted by the user.")
     sys.exit(0)
 ##### END OF PROCESS STEP 1_2 REFINE SEARCH TERMS #####
 ##### END OF STEP 1 #####
 
-##### STEP 2 PLOTTING THE LEVEL OF CONSERVATION BETWEEN THE PROTEIN SEQUENCES ####
+##### STEP 2 DETERMINING AND PLOTTING THE LEVEL OF CONSERVATION BETWEEN THE PROTEIN SEQUENCES ####
+##### PROCESS STEP 2_1 LIMIT PROTEIN SEQUENCE NUMBERS FROM FASTA FILE #####
+# ask the user whether they want to limit the number of sequences to use for the conervsation analysis
+def get_min_and_max_seq_len():
+    # inform the user how many sequences there are in the fasta file generated from the last step, so that they can make an informed decision
+    print('\nWe will now determine and plot the level of conservation between the protein sequences.'
+          '\nBefore we do that, you may wish to limit the number of sequences used for the conservation analysis.'
+          '\nAn advantage of this is so that the analysis focuses on the most biologically meaningful data and that as little noise as possible is in the conservation plot.'
+          '\nThere are ',int(seq_count),' sequences in your fasta file generated from the first step.'
+                                        '\nSelect \'y\' if you\'d like to reduce the number of sequences to use in the conservation analysis.')
+    time.sleep(0.5)
+    # ask the user whether they'd like to proceed to reduce the number of sequences to use in the conservation analysis
+    confirmation = get_confirmation()
+    if confirmation == True:
+        print("The programme will now prompt you to enter the minimum and maximum length of the protein sequences you'd like to use in the conservation analysis.")
+        while True:
+            min_seq_len = int(input(
+                'Please enter (in integer) the MINIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
+            max_seq_len = int(input(
+                'Please enter (in integer) the MAXIMUM length of the protein sequences you\'d like to use in the conservation analysis:')
+            # remind the user of their input
+            print("The minmum and maximum length of the protein sequences you'd like to use in the conservation analysis are ", int(min_seq_len), " and ", int(max_seq_len), ".")
+            # ask whether the user would like to proceed with the entered values
+            confirmation = get_confirmation()
+            if confirmation == True:
+                print("Thank you, proceeding with the analysis.")
+                return max_seq_len, min_seq_len
+            else:
+                print("Taking you back to the last step...")
+                time.sleep(0.5)
+    # if the user does not want to apply any min or max length for sequences, then proceed with the analysis
+    else:
+        print("Thank you, proceeding with the analysis.")
+        max_seq_len = None
+        min_seq_len = None
+        return max_seq_len, min_seq_len
 
-# the fasta sequence of the protein asked for is saved in esearch_result and the fasta file saved in file_name.fasta
+# get the minimum and maximum length of the protein sequences to use in the conservation analysis
+max_seq_len, min_seq_len = get_min_and_max_seq_len()
 
+##### PROCESS STEP 2_1 LIMIT PROTEIN SEQUENCE NUMBERS FROM FASTA FILE #####
 
-def plot_conservation():
+##### PROCESS STEP 2_2 PLOTTING THE LEVEL OF CONSERVATION BETWEEN THE PROTEIN SEQUENCES #####
+# define a function to determine and plot the level of conservation between the protein sequences
+def plot_conservation(file_name):
     '''This function plots the level of conservation between the protein sequences
     sequences: the fasta sequence of the protein asked for
     '''
@@ -431,12 +474,57 @@ def plot_conservation():
     subprocess.call("plotcon -sequences "+str(file_name)+".msf -sprotein1 True -winsize 4 -graph pdf -goutfile "+str(file_name), shell = True)
     # save as file_name.pdf and file_name.1.png .1 is added because only then it can be opened by eog
     subprocess.call("plotcon -sequences " + str(file_name) + ".msf -sprotein1 True -winsize 4 -graph png -goutfile " + str(file_name), shell=True)
+    # tell the user where the plot is saved
+    print('The conservation plot is saved in a pdf file and a png file called', file_name, '1.png and ', file_name, 'pdf respectively.')
+    time.sleep(0.5)
+    # open the plot
+    print('Opening a new window to show the plot, please close it after viewing to proceed.')
+    time.sleep(0.5)
     subprocess.call("eog "+str(file_name)+".1.png", shell=True)
 
-# use the plot_conservation() function to plot the level of conservation between the protein sequences
-plot_conservation()
+# this is where we use pullseq to allow the user to limit the number of sequences
+# to make life easier, we alias pullseq to /localdisk/data/BPSM/ICA2/pullseq
+subprocess.call('alias pullseq='+'"/localdisk/data/BPSM/ICA2/pullseq"',shell= True)
+# make sure the user entered integers for min and max length of sequences
+if type(min_seq_len) == int and type(max_seq_len) == int:
+    trimmed_seq = subprocess.getoutput("pullseq -i "+str(file_name)+".fasta -m ",str(min_seq_len)," -a ",str(max_seq_len))
+    # save the trimmed sequence to a new file
+    new_file_name = str(str(file_name) + "_min" + str(min_seq_len) + "_max" + str(max_seq_len))
+    with open(f"{new_file_name}" + ".fasta", "w") as f:
+        f.write(trimmed_seq)
+        f.close()
+    # plot the conservation of the trimmed sequence
+    plot_conservation(new_file_name)
+# if the user did not enter min and max length of sequences, then proceed with the analysis
+elif type(min_seq_len) == None and type(max_seq_len) == None:
+    new_file_name = file_name
+    plot_conservation(new_file_name)
+else:
+    print("Something went wrong, please try again.")
+    sys.exit(1)
+
+##### END OF STEP 2 #####
+
+##### STEP 3 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE #####
+# use patmatmotifs to scan a protein sequence with motifs from the PROSITE database
+def scan_motifs(file_name):
+    '''This function scans a protein sequence with motifs from the PROSITE database
+    sequences: the fasta sequence of the protein asked for
+    '''
+    print("Preparing your plot, please wait...")
+
+    subprocess.call("patmatmotifs -sequence "+str(file_name)+".fasta -outfile "+str(file_name)+".patmatmotifs.txt", shell = True)
+    print('Opening a new window to show the plot, please close it after viewing to proceed.')
+    subprocess.call("eog "+str(file_name)+".patmatmotifs.txt", shell=True)
+
+scan_motifs(file_name)
+
+##### END OF STEP 3 #####
 
 
+##### STEP 4  #####
 
+
+# TODO: ask the user if they want to save all the files into a new directory
 
 #############################################################
