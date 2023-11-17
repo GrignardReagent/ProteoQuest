@@ -4,7 +4,6 @@ import subprocess
 import sys
 import re
 import time
-
 import numpy as np
 import pandas as pd
 ##### STEP 1: GET USER INPUT ####
@@ -31,7 +30,7 @@ def get_confirmation():
     '''This function gets confirmation from the user as to whether they'd like to proceed. It returns True if the user would indeed like to proceed'''
     while True:
         # take an input from the user and turn it lowercase
-        confirmation = input("Would you like to proceed with the current search term? (y/n)").lower()
+        confirmation = input("Would you like to proceed? (y/n)").lower()
         if confirmation == 'y':
             return True
         elif confirmation == 'n':
@@ -103,8 +102,10 @@ def protein_esearch(search_term):
         # if seq_count is more than 1000, then the user needs to refine their search term
         if int(seq_count) > 1000 or int(seq_count) == 0:
             print("Your search term returned ",seq_count, " results.")
+            time.sleep(1)
             print("This is either more than 1000 results or did not return any result. Please refine your search term."
                   "\nYour search term was", search_term)
+            time.sleep(0.5)
             search_term = input("The search term should be in the format of "
                                 "\nOrganism[ORGN] AND Protein[PROT]"
                                 "\nYou can also specify a non-partial search term, e.g., Organism[ORGN] AND Protein[PROT] NOT PARTIAL"
@@ -308,8 +309,10 @@ def refine_tax_search_terms(user_input):
         if len(result_name_dict) == 1:
             print("You have specified the taxonomic group: ", result_name_dict,
                   #TODO: with x number of results on NCBI,
-                  "\nNow you can choose to proceed further with the search OR refine your search further."
+                  "\nNow you can choose to proceed further using the current search term OR refine your search further."
                   "\nTo start over, use CTRL + C")
+            time.sleep(0.5)
+            print('To proceed further with the current search term, please enter \'y\', or refine your search term further by entering \'n\'')
             user_confirmation = get_confirmation()
             # if the user would like to proceed, then we can go ahead with the user_input
             if user_confirmation == True:
@@ -424,11 +427,19 @@ except KeyboardInterrupt:
 # ask the user whether they want to limit the number of sequences to use for the conervsation analysis
 def get_min_and_max_seq_len():
     # inform the user how many sequences there are in the fasta file generated from the last step, so that they can make an informed decision
-    print('\nWe will now determine and plot the level of conservation between the protein sequences.'
-          '\nBefore we do that, you may wish to limit the number of sequences used for the conservation analysis.'
-          '\nAn advantage of this is so that the analysis focuses on the most biologically meaningful data and that as little noise as possible is in the conservation plot.'
-          '\nThere are ',int(seq_count),' sequences in your fasta file generated from the first step.'
-                                        '\nSelect \'y\' if you\'d like to reduce the number of sequences to use in the conservation analysis.')
+    print('\nWe will now determine and plot the level of conservation between the protein sequences.')
+    time.sleep(0.5)
+    print('\nBefore we do that, you may wish to limit the number of sequences used for the conservation analysis.')
+    time.sleep(0.5)
+    print('\nAn advantage of this is so that the analysis focuses on the most biologically meaningful data and that as little noise as possible is in the conservation plot.')
+    time.sleep(0.5)
+    print('\nThere are ',int(seq_count),' sequences in your fasta file generated from the first step.')
+    #TODO: inform the user how long the shortest sequence is and the longest, so that they can make an informed decision
+    subprocess.getoutput("grep -c '>' "+str(file_name)+".fasta")
+
+
+    time.sleep(0.5)
+    print('\nEnter \'y\' if you\'d like to reduce the number of sequences to use in the conservation analysis, and \'n\' if you want to skip this.')
     time.sleep(0.5)
     # ask the user whether they'd like to proceed to reduce the number of sequences to use in the conservation analysis
     confirmation = get_confirmation()
@@ -437,21 +448,28 @@ def get_min_and_max_seq_len():
         while True:
             min_seq_len = int(input(
                 'Please enter (in integer) the MINIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
+            time.sleep(0.5)
             max_seq_len = int(input(
-                'Please enter (in integer) the MAXIMUM length of the protein sequences you\'d like to use in the conservation analysis:')
+                'Please enter (in integer) the MAXIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
+            time.sleep(0.5)
             # remind the user of their input
-            print("The minmum and maximum length of the protein sequences you'd like to use in the conservation analysis are ", int(min_seq_len), " and ", int(max_seq_len), ".")
+            print("The minimum and maximum length of the protein sequences you'd like to use in the conservation analysis are "+ str(min_seq_len)+ " and "+ str(max_seq_len)+ ".")
+
+            #TODO: how many sequences are there NOW after this filtration step?
+
             # ask whether the user would like to proceed with the entered values
             confirmation = get_confirmation()
             if confirmation == True:
-                print("Thank you, proceeding with the analysis.")
+                print("Thank you, proceeding with the analysis...")
+                time.sleep(0.5)
                 return max_seq_len, min_seq_len
             else:
                 print("Taking you back to the last step...")
                 time.sleep(0.5)
     # if the user does not want to apply any min or max length for sequences, then proceed with the analysis
     else:
-        print("Thank you, proceeding with the analysis.")
+        print("Thank you, proceeding with the analysis...")
+        # set the min and max length to None so that the analysis will use ALL the sequences in the fasta file generated from the first step.
         max_seq_len = None
         min_seq_len = None
         return max_seq_len, min_seq_len
@@ -478,16 +496,16 @@ def plot_conservation(file_name):
     print('The conservation plot is saved in a pdf file and a png file called', file_name, '1.png and ', file_name, 'pdf respectively.')
     time.sleep(0.5)
     # open the plot
-    print('Opening a new window to show the plot, please close it after viewing to proceed.')
+    print('Opening a new window to show the plot, please close it after viewing to proceed...')
     time.sleep(0.5)
     subprocess.call("eog "+str(file_name)+".1.png", shell=True)
 
 # this is where we use pullseq to allow the user to limit the number of sequences
-# to make life easier, we alias pullseq to /localdisk/data/BPSM/ICA2/pullseq
-subprocess.call('alias pullseq='+'"/localdisk/data/BPSM/ICA2/pullseq"',shell= True)
+# # to make life easier, we can alias pullseq to /localdisk/data/BPSM/ICA2/pullseq
+# subprocess.call('alias pullseq='+'"/localdisk/data/BPSM/ICA2/pullseq"',shell= True)
 # make sure the user entered integers for min and max length of sequences
 if type(min_seq_len) == int and type(max_seq_len) == int:
-    trimmed_seq = subprocess.getoutput("pullseq -i "+str(file_name)+".fasta -m ",str(min_seq_len)," -a ",str(max_seq_len))
+    trimmed_seq = subprocess.getoutput("/localdisk/data/BPSM/ICA2/pullseq -i "+str(file_name)+".fasta -m "+str(min_seq_len)+" -a "+str(max_seq_len))
     # save the trimmed sequence to a new file
     new_file_name = str(str(file_name) + "_min" + str(min_seq_len) + "_max" + str(max_seq_len))
     with open(f"{new_file_name}" + ".fasta", "w") as f:
@@ -511,13 +529,21 @@ def scan_motifs(file_name):
     '''This function scans a protein sequence with motifs from the PROSITE database
     sequences: the fasta sequence of the protein asked for
     '''
-    print("Preparing your plot, please wait...")
+    # inform the user that the report is being prepared, so that they can make an informed decision
+    print('\nWe will now scan the protein sequences with motifs from the PROSITE database.')
+    #TODO: the purpose of this is??
+    time.sleep(0.5)
+    print("Preparing your report, please wait...")
+    # scan the protein sequences with motifs form the PROSITE database and save the report as file_name.patmatmotifs.txt
+    subprocess.call("patmatmotifs -sequence "+str(file_name)+".fasta -outfile "+str(file_name)+".patmatmotifs.out", shell = True)
+    # TODO: print and save 1) the names of any known motifs found with the sequence 2) HitCount 3) the number of times each motif was found (if applicable)
+    # TODO: 4) the positions of each motif found in the sequence 5) the length of the motif found
+    # TODO: save 1-5 in a pandas dataframe and save the dataframe as file_name.patmatmotifs.csv
+    # print out the report to the screen
+    subprocess.call("cat "+str(file_name)+".patmatmotifs.out", shell=True)
 
-    subprocess.call("patmatmotifs -sequence "+str(file_name)+".fasta -outfile "+str(file_name)+".patmatmotifs.txt", shell = True)
-    print('Opening a new window to show the plot, please close it after viewing to proceed.')
-    subprocess.call("eog "+str(file_name)+".patmatmotifs.txt", shell=True)
 
-scan_motifs(file_name)
+# scan_motifs(new_file_name)
 
 ##### END OF STEP 3 #####
 
@@ -526,5 +552,6 @@ scan_motifs(file_name)
 
 
 # TODO: ask the user if they want to save all the files into a new directory
+# if true, save all the files into a new directory
 
 #############################################################
