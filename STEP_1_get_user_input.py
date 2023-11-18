@@ -573,24 +573,25 @@ def scan_motifs(file_name):
     # split the sequences within the fasta file into individual sequences
     # get the content of the fasta file into a variable and splitting the content into individual sequences
     sequences = subprocess.getoutput("cat "+str(file_name)+".fasta").split('>')[1:]
-
     # define an empty dictionary to collect seq_data
     seq_data_dict = {}
     # extract the sequence data of each sequence in the fasta file
     for sequence in sequences:
         # split the sequence into individual
         lines = sequence.split('\n')
-        header = lines[0].replace(' ', '')
+        # save the accession ID by taking the first line in lines and splitting it by space
+        header = lines[0].split(' ')
+        # the first item in header is the accession ID
+        accession_id = header[0]
+        # header = (lines[0].replace(' ', '').replace("(", "").replace(")", "").replace("\'", "").
+        #           replace(":", "").replace(",", "").replace("-", "").replace(":", "").replace("[","").replace("]","")
+        #           )
         # join all the lines together to get the whole sequence
         seq_data = ''.join(lines[1:])
-        # append the sequence data to the dictionary so we can use it outside of the for loop
-        seq_data_dict.append(seq_data)
-        # use a dictionary to save each item in result_name_list as a value and its index as a key
-        result_name_dict = {}
-        for i in range(result_len):
-            result_name_dict[i] = result_name[i]
+        # use a dictionary to save each item in result_name_dict as a value and its header as a key
+        seq_data_dict[accession_id] = seq_data
         # save the sequence data to a new file
-        with open(f"{header}" + ".fasta", "w") as f:
+        with open(f"{accession_id}" + ".fasta", "w") as f:
             f.write(seq_data)
             f.close()
 
