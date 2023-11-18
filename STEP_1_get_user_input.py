@@ -479,6 +479,11 @@ def define_min_and_max_seq_len():
             time.sleep(0.5)
             # remind the user of their input
             print("The minimum and maximum length of the protein sequences you'd like to use in the conservation analysis are "+ str(def_min_seq_len)+ " and "+ str(def_max_seq_len)+ ".")
+            # get the sequence count after trimming the sequences
+            trimmed_seq_count = subprocess.getoutput(
+                "/localdisk/data/BPSM/ICA2/pullseq -i " + str(file_name) + ".fasta -m " + str(
+                    def_min_seq_len) + " -a " + str(def_max_seq_len)+"| grep -c '>'")
+            print("The number of sequences in your trimmed fasta file is ", trimmed_seq_count)
 
             # ask whether the user would like to proceed with the entered values
             confirmation = get_confirmation()
@@ -559,17 +564,17 @@ else:
 ##### END OF STEP 2 #####
 
 ##### STEP 3 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE #####
-##### PROCESS STEP 3_1 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE ####
+##### PROCESS STEP 3_1 EXTRACTING SEQUENCES FROM THE FASTA FILE TO A FOLDER CONTAINING ALL SEQUENCES AS FASTA FILES #####
 
-def scan_motifs(file_name):
-    '''This function takes the fasta sequence as an input and extracts the sequences to a separate file
+# define a function to extract the sequences from the fasta file to a folder containing all sequences as fasta files
+def extract_seq(file_name):
+    '''This function takes the fasta sequence containing multiple sequences as an input and extracts the sequences to separate files.
+    The separate files are saved in a new folder and each sequence is also saved as a dictionary item with their accession ID as their key
     '''
-    # inform the user that the report is being prepared
-    print('\nWe will now scan the protein sequences with motifs from the PROSITE database.')
-    #TODO: explain to the user the purpose of this
-    time.sleep(0.5)
-    print("Preparing your report, please wait...")
-
+    # create a new directory to save the extracted sequences
+    new_dir = str("sequences_"+str(file_name))
+    # 'exist_ok = True' makes sure no error is returned if the directory already exists
+    os.makedirs(f"{new_dir}",exist_ok=True)
     # split the sequences within the fasta file into individual sequences
     # get the content of the fasta file into a variable and splitting the content into individual sequences
     sequences = subprocess.getoutput("cat "+str(file_name)+".fasta").split('>')[1:]
@@ -583,31 +588,72 @@ def scan_motifs(file_name):
         header = lines[0].split(' ')
         # the first item in header is the accession ID
         accession_id = header[0]
-        # header = (lines[0].replace(' ', '').replace("(", "").replace(")", "").replace("\'", "").
-        #           replace(":", "").replace(",", "").replace("-", "").replace(":", "").replace("[","").replace("]","")
-        #           )
         # join all the lines together to get the whole sequence
         seq_data = ''.join(lines[1:])
         # use a dictionary to save each item in result_name_dict as a value and its header as a key
         seq_data_dict[accession_id] = seq_data
         # save the sequence data to a new file
-        with open(f"{accession_id}" + ".fasta", "w") as f:
+        with open(f"./{new_dir}/{accession_id}" + ".fasta", "w") as f:
+            f.write(">"+str(header)+"\n")
             f.write(seq_data)
             f.close()
+    # inform the user where the files are saved
+    print('The extracted sequences are saved in a new folder called', f'{new_dir}', '.')
 
+    # return the dictionary of sequence data and the header
+    return seq_data_dict
 
-    return min_seq_len, max_seq_len
+# executing seq_data_dict and saving the dictionary as a global variable
+seq_data_dict = extract_seq(new_file_name)
 
-    # use patmatmotifs to scan a protein sequence with motifs from the PROSITE database
-    # scan the protein sequences with motifs form the PROSITE database and save the report as file_name.patmatmotifs.txt
-    subprocess.call("patmatmotifs -sequence "+str(file_name)+".fasta -outfile "+str(file_name)+".patmatmotifs.out", shell = True)
+##### END OF PROCESS STEP 3_1 ####
+
+##### PROCESS STEP 3_2 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE #####
+#  define a function to scan the protein sequences with motifs from the PROSITE database
+def scan_motifs(file_name):
+    '''This function takes a SINGLE protein sequence and uses patmatmotifs to scan the motifs from the PROSITE database'''
+    # inform the user that the report is being prepared
+    print('\nWe will now scan the protein sequences with motifs from the PROSITE database.')
+    #TODO: explain to the user the purpose of this
+    time.sleep(0.5)
+    print("Preparing your report, please wait...")
+    # change directory to sequence_{file_name}
+    os.chdir("./sequences_"+str(file_name))
+
+    # get the list of all the sequences in the folder
+    seq_list = subprocess.getoutput("ls *.fasta")
+
+    # create a new directory to save the outfiles from patmatmotifs
+    new_dir = str("patmatmotifs_"+str(file_name))
+
+    # 'exist_ok = True' makes sure no error is returned if the directory already exists
+    os.makedirs(f"{new_dir}",exist_ok=True)
+
+    for seq in seq_list:
+        # use patmatmotifs to scan a protein sequence with motifs from the PROSITE database
+        # scan the protein sequences with motifs form the PROSITE database and save the report as {seq}.patmatmotifs
+        subprocess.call("patmatmotifs -sequence "+"../"+seq
+                        +" -outfile "+str(seq)+".patmatmotifs", shell = True)
+        print('The report is saved in a text file called', f'{seq}.patmatmotifs')
     # TODO: print and save 1) the names of any known motifs found with the sequence (header) 2) HitCount
+
+
     # TODO: save them in a pandas dataframe and save the dataframe as file_name.patmatmotifs.csv
     # print out the report to the screen
-    subprocess.call("cat "+str(file_name)+".patmatmotifs.out", shell=True)
+    subprocess.call("cat ./"+str(file_name)+".patmatmotifs", shell=True)
 
+    # inform the user where the report is saved
+    print('A summary file for all the sequences scanned with motifs from the PROSITE data base is saved'
+          'in a csv file called', f'{new_dir}.patmatmotifs.csv', '.')
+    time.sleep(0.5)
 
-# scan_motifs(new_file_name)
+    # move every patmatmotifs report to the new directory
+    subprocess.call("mv *.patmatmotifs ./"+new_dir, shell=True)
+
+    # go back to the original directory
+    os.chdir("..")
+
+scan_motifs(new_file_name)
 
 ##### END OF STEP 3 #####
 
@@ -619,6 +665,12 @@ def scan_motifs(file_name):
 # if true, save all the files into a new directory
 
 #############################################################
+
+#### TRASH BIN ####
+
+# header = (lines[0].replace(' ', '').replace("(", "").replace(")", "").replace("\'", "").
+#           replace(":", "").replace(",", "").replace("-", "").replace(":", "").replace("[","").replace("]","")
+#           )
 
 
     # TODO: print and save 1) the names of any known motifs found with the sequence (header) 2) HitCount 3) the number of times each motif was found (if applicable)
