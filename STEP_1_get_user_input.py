@@ -6,6 +6,7 @@ import re
 import time
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 ##### STEP 1: GET USER INPUT ####
 # the following script takes an input from the user, asking them which database they'd like to search from
 # and then asks them which search item they'd like to search for and what search type this search item is.
@@ -20,7 +21,7 @@ print("Welcome to the E-Search programme!"
       "\n2) The UID* or the GI number of the protein of interest, if you know it."
       "\n *UID = Unique Identifier; GI = UID common name for proteins"
       "\nYou can use CTRL + C to abort the programme at any point and restart the programme.")
-#TODO: WHAT IS UID.....
+
 
 ##### PROCESS STEP 1_1: GET USER INITIAL INPUT OF TAXONOMY #####
 ## This step takes the user's TAXONOMY input and store it as a variable
@@ -534,8 +535,6 @@ def plot_conservation(file_name):
     time.sleep(0.5)
     subprocess.call("eog "+str(file_name)+".1.png", shell=True)
 
-
-# TODO: Make this a function?
 # this is where we use pullseq to allow the user to limit the number of sequences
 # make sure the user entered integers for min and max length of sequences
 if type(def_min_seq_len) == int and type(def_max_seq_len) == int:
@@ -609,116 +608,122 @@ seq_data_dict = extract_seq(new_file_name)
 ##### END OF PROCESS STEP 3_1 ####
 
 ##### PROCESS STEP 3_2 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE #####
-#  define a function to scan the protein sequences with motifs from the PROSITE database
-def scan_motifs(file_name):
-    '''This function takes a SINGLE protein sequence and uses patmatmotifs to scan the motifs from the PROSITE database'''
-    # inform the user that the report is being prepared
-    print('\nWe will now scan the protein sequences with motifs from the PROSITE database.')
-    #TODO: explain to the user the purpose of this
-    time.sleep(0.5)
-    print("Preparing your report, please wait...")
-    # change directory to sequence_{file_name}
-    os.chdir("./sequences_"+str(file_name))
+# now we need to scan the protein sequences with motifs from the PROSITE database
+# inform the user that the report is being prepared
+print('\nWe will now scan the protein sequences with motifs from the PROSITE database.'
+      '\nPROSITE is a database of protein families and domains with annotated patterns. '
+      '\nIt provides conserved motifs, functional insights, and cross-references to aid in protein analysis. '
+      '\nIt is usually used for predicting protein functions and guiding experimental studies.')
 
-    # get the list of all the sequences in the folder
-    seq_list = subprocess.getoutput("ls *.fasta").split('\n')
+time.sleep(0.5)
+print("Preparing your report, please wait...")
+time.sleep(0.5)
+# change directory to sequence_{file_name}
+os.chdir("./sequences_"+str(new_file_name))
 
-    # create a new directory to save the outfiles from patmatmotifs
-    new_dir = str("patmatmotifs_"+str(file_name))
+# get the list of all the sequences in the folder
+seq_list = subprocess.getoutput("ls *.fasta").split('\n')
 
-    # 'exist_ok = True' makes sure no error is returned if the directory already exists
-    os.makedirs(f"{new_dir}",exist_ok=True)
+# create a new directory to save the outfiles from patmatmotifs
+new_dir = str("patmatmotifs_"+str(new_file_name))
 
+# 'exist_ok = True' makes sure no error is returned if the directory already exists
+os.makedirs(f"{new_dir}",exist_ok=True)
+
+# allow the user to decide whether they'd like to scan simple post-translational modifications
+print("Would you like to scan for simple post-translational modification sites? (y/n)"
+      "\nIf you choose \'n\', then simple post-translational modification sites will not be reported:"
+      "myristyl, asn_glycosylation,camp_phospho_site, pkc_phospho_site, ck2_phospho_site, and tyr_phospho_site.")
+# ask the user if they'd like to scan simple post-translational modifications
+confirmation = get_confirmation()
+# if the user would like to scan for simple post-translational modifications, continue with the scan
+if  confirmation == True:
     # for loop to scan each sequence with patmatmotifs
     for seq in seq_list:
         # use patmatmotifs to scan a protein sequence with motifs from the PROSITE database
         # scan the protein sequences with motifs form the PROSITE database and save the report as {seq}.patmatmotifs
         subprocess.call("patmatmotifs -sequence "+ str(seq)
                         +" -outfile "+str(seq)+".patmatmotifs", shell = True)
-    # move every patmatmotifs report to the new directory
-    subprocess.call("mv *.patmatmotifs ./"+new_dir, shell=True)
-
-    # change directory to {new_dir}:
-    os.chdir(str(new_dir))
-    df = pd.DataFrame(columns=['sequence', 'motif_name', 'motif_count'])
-    # define a dictionary to collect seq_name as the key and motif names and count as values (a nested dict)
-    seq_motif_dict = {}
-    # for each sequence in the folder, read the patmatmotifs report and extract the motif names and counts
+# if the user would not like to scan for simple post-translational modifications, pass in the additional argument -prune
+else:
     for seq in seq_list:
-        with open(str(seq)+".patmatmotifs",'r') as f:
-            # TODO: read each line as lines and extract 1) sequence name 2) motif name 3) count of that motif
-            # initialise seq_name outside the loop and a dictionary to collect seq_name as the key and
-            # motif names and count as values
-            seq_name = None
-            # initialise motif_name outside the loop, this is our inner dictionary
-            motif_name_count = {}
+        # use patmatmotifs to scan a protein sequence with motifs from the PROSITE database
+        # scan the protein sequences with motifs form the PROSITE database and save the report as {seq}.patmatmotifs
+        subprocess.call("patmatmotifs -sequence "+ str(seq)
+                        +" -outfile "+str(seq)+".patmatmotifs -prune", shell = True)
 
-            lines = f.readlines()
-            for line in lines:
-                # if the line starts with '#    -sequence', then extract the sequence name
-                if line.startswith('#    -sequence'):
-                    seq_name = line.split('-sequence')[1].strip()
+# move every patmatmotifs report to the new directory
+subprocess.call("mv *.patmatmotifs ./"+new_dir, shell=True)
 
-                # if 'Motif' is found, then extract the motif name and count of that motif
-                if 'Motif' in line:
-                    # split the line into two parts: motif name and the count of it (+1 each time it's found)
-                    motif_name = line.split(' = ')[1].strip()
-                    # collect motif_name and increment the count in a dictionary,
-                    # if the name does not exist, then insert the key with the value 0, which is the count for that motif
-                    motif_name_count.setdefault(motif_name,0)
-                    # increment by 1 for that motif_name
-                    motif_name_count[motif_name] += 1
-            seq_motif_dict[seq_name] = motif_name_count
+# change directory to {new_dir}:
+os.chdir(str(new_dir))
+df = pd.DataFrame(columns=['sequence', 'motif_name', 'motif_count'])
+# define a dictionary to collect seq_name as the key and motif names and count as values (a nested dict)
+seq_motif_dict = {}
+# for each sequence in the folder, read the patmatmotifs report and extract the motif names and counts
+for seq in seq_list:
+    with open(str(seq)+".patmatmotifs",'r') as f:
+        # initialise seq_name outside the loop and a dictionary to collect seq_name as the key and
+        # motif names and count as values
+        seq_name = None
+        # initialise motif_name outside the loop, this is our inner dictionary
+        motif_name_count = {}
+        # same as splitlines (ish)
+        lines = f.readlines()
+        for line in lines:
+            # if the line starts with '#    -sequence', then extract the sequence name
+            if line.startswith('#    -sequence'):
+                seq_name = line.split('-sequence')[1]
+                seq_name= seq_name.strip(".fasta\n")
 
+            # if 'Motif' is found, then extract the motif name and count of that motif
+            if 'Motif' in line:
+                # split the line into two parts: motif name and the count of it (+1 each time it's found)
+                motif_name = line.split(' = ')[1].strip()
+                # collect motif_name and increment the count in a dictionary,
+                # if the name does not exist, then insert the key with the value 0, which is the count for that motif
+                motif_name_count.setdefault(motif_name,0)
+                # increment by 1 for that motif_name
+                motif_name_count[motif_name] += 1
+        seq_motif_dict[seq_name] = motif_name_count
+        # remember to close the file connection
+        f.close()
 
+print('The reports for each sequenece in the fasta file with motifs from the PROSITE database'
+      'are saved in a new folder called', f'{new_dir}', '.')
+time.sleep(1)
+print('You are now in the new folder.')
+# convert the dictionary to a dataframe, with index as the column
+df = pd.DataFrame.from_dict(seq_motif_dict, orient='index')
+# fill the NaN values with 0
+df = df.fillna(0)
+# convert the dataframe to a csv file
+df.to_csv(f'{new_file_name}_motif_counts.csv',index=False)
+print('A summary file for all the sequences scanned with motifs from the PROSITE data base is saved'
+      'in a csv file called '+str(new_file_name)+'_motif_count.csv.')
+time.sleep(0.5)
+print('Plotting this in a bar plot...')
+# plotting this csv file
+df.plot.bar(stacked = True)
+plt.xlabel('Sequence Name')
+plt.ylabel('Motif Count')
+plt.title('Motif Counts in Each Sequence')
+plt.legend(title='Motif',bbox_to_anchor=(0.8, 1), loc='upper right',fontsize='small')
+plt.savefig(f"{new_file_name}.png", transparent=True)
+plt.show()
+# inform the user where the report is saved
+print('The report is saved in a png file called '+str(new_file_name)+'.png.')
+time.sleep(0.5)
+print('Going back to the directory where we started...')
 
-                # df = df.append({'sequence': seq_name, 'motif_name': motif_name, 'motif_count': motif_count}, ignore_index=True)
+# delete all the fasta files in the sequences_{new_file_name} folder
+os.chdir("..") # PWD = sequence_{new_file_name}
+subprocess.call("rm -f *.fasta", shell=True)
+# go back to the original directory
+os.chdir("..") # PWD = where this script is stored.
 
-            f.close()
-
-
-    print('The reports for each sequenece in the fasta file with motifs from the PROSITE database'
-          'are saved in a new folder called', f'{new_dir}', '.')
-    time.sleep(1)
-    print('You are now in the new folder.')
-    # TODO: save 1) the names of any known motifs found with the sequence (header) 2) Number of hits for each one
-    # read each patmatmotifs report, save the name of the motifs found and the number of hits for each motif
-    subprocess.getoutput("cat *.patmatmotifs")
-
-
-    # save the names and hits in a dictionary
-
-
-    # save the dictionary as a csv file
-
-
-
-
-    # TODO: save them in a pandas dataframe and save the dataframe as file_name.patmatmotifs.csv
-    # print out the report to the screen
-    subprocess.call("cat ./"+str(file_name)+".patmatmotifs", shell=True)
-    # pd.DataFrame()
-    # change directory to patmatmotifs_{file_name}
-
-    # inform the user where the report is saved
-    print('A summary file for all the sequences scanned with motifs from the PROSITE data base is saved'
-          'in a csv file called', f'{new_dir}.patmatmotifs.csv', '.')
-    time.sleep(0.5)
-
-
-
-    # delete all the fasta files in the sequences_{file_name} folder
-    os.chdir("..")
-    subprocess.call("rm -f *.fasta", shell=True)
-
-
-    # go back to the original directory
-    os.chdir("..")
-
-scan_motifs(new_file_name)
-
+##### END OF PROCESS STEP 3_2 #####
 ##### END OF STEP 3 #####
-
 
 ##### STEP 4  #####
 
