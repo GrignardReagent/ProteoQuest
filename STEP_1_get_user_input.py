@@ -115,9 +115,6 @@ def protein_esearch(search_term):
     # run esearch in the protein database on the commandline and save it to user_result
     esearch_result = subprocess.getoutput("esearch -db protein -spell -query " + '"' + str(search_term) + '"' + "| efetch -format fasta")
 
-    # this will print all the fasta sequences found to the screen
-    print(esearch_result)
-
     # save the output to a file
     print("Your search term returned ", seq_count, " results.")
 
@@ -334,6 +331,7 @@ def refine_tax_search_terms(user_input):
                 result_name_dict, result_len, result_name, user_result = get_scientific_names(user_input)
                 # if the user would like to proceed, then we can go ahead with the user_input
                 if user_confirmation == True:
+                    result_name = result_name_dict[0]
                     print("Thank you, proceeding with taxonomic group ", result_name)
                     return result_name
                 # if the user does not want to proceed, then exit the programme.
@@ -493,16 +491,18 @@ def define_min_and_max_seq_len():
                 time.sleep(0.5)
     # if the user does not want to apply any min or max length for sequences, then proceed with the analysis
     else:
-        print("Thank you, proceeding with the analysis...")
-        # set the min and max length to None so that the analysis will use ALL the sequences in the fasta file generated from the first step.
-        def_max_seq_len = None
-        def_min_seq_len = None
+        print("Thank you, proceeding with the analysis with default minimum and maxium sequence lengths...")
+        # give def_min_seq_len and def_max_seq_len default values
+        def_max_seq_len, def_min_seq_len = int(max_seq_len), int(min_seq_len)
+        print("The minimum and maximum length of the protein sequences you'd like to use in the conservation analysis are " + str(
+                def_min_seq_len) + " and " + str(def_max_seq_len) + ".")
+
         return def_min_seq_len,def_max_seq_len
 
 # get the minimum and maximum length of the protein sequences to use in the conservation analysis
 def_min_seq_len, def_max_seq_len = define_min_and_max_seq_len()
 
-##### PROCESS STEP 2_1 LIMIT PROTEIN SEQUENCE NUMBERS FROM FASTA FILE #####
+##### END OF PROCESS STEP 2_1 LIMIT PROTEIN SEQUENCE NUMBERS FROM FASTA FILE #####
 
 ##### PROCESS STEP 2_2 PLOTTING THE LEVEL OF CONSERVATION BETWEEN THE PROTEIN SEQUENCES #####
 # define a function to determine and plot the level of conservation between the protein sequences
@@ -511,8 +511,12 @@ def plot_conservation(file_name):
     sequences: the fasta sequence of the protein asked for
     '''
     print("Preparing your plot, please wait...")
-
-    subprocess.call("clustalo --infile="+str(file_name)+".fasta --outfile="+ str(file_name)+ ".msf --threads=200 --force", shell = True)
+    # use clustalo to get sequence alignment
+    try:
+        subprocess.call("clustalo --infile="+str(file_name)+".fasta --outfile="+ str(file_name)+ ".msf --threads=200 --force", shell = True)
+    except:
+        print("Something went wrong, please try again.")
+        sys.exit(1)
     # sprotein1 specifies whether the sequence is a protein
     subprocess.call("plotcon -sequences "+str(file_name)+".msf -sprotein1 True -winsize 4 -graph pdf -goutfile "+str(file_name), shell = True)
     # save as file_name.pdf and file_name.1.png .1 is added because only then it can be opened by eog
@@ -525,6 +529,8 @@ def plot_conservation(file_name):
     time.sleep(0.5)
     subprocess.call("eog "+str(file_name)+".1.png", shell=True)
 
+
+# TODO: Make this a function?
 # this is where we use pullseq to allow the user to limit the number of sequences
 # make sure the user entered integers for min and max length of sequences
 if type(def_min_seq_len) == int and type(def_max_seq_len) == int:
@@ -536,12 +542,9 @@ if type(def_min_seq_len) == int and type(def_max_seq_len) == int:
         f.close()
     # plot the conservation of the trimmed sequence
     plot_conservation(new_file_name)
-# if the user did not enter min and max length of sequences, then proceed with the analysis
-elif type(def_min_seq_len) == None and type(def_max_seq_len) == None:
-    new_file_name = file_name
-    plot_conservation(new_file_name)
+#todo: error trapping if the user enters non-integers for min and max length of sequences
 else:
-    print("Something went wrong, please try again.")
+    print("Please enter integers for the minimum and maximum length of the protein sequences you'd like to use in the conservation analysis.")
     sys.exit(1)
 
 # time.sleep(0.5)
@@ -553,27 +556,52 @@ else:
 # if true, continue with the current new_file_name
 # if false, do define_min_and_max_seq_len() again
 
-
-
-
 ##### END OF STEP 2 #####
 
 ##### STEP 3 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE #####
-# use patmatmotifs to scan a protein sequence with motifs from the PROSITE database
+##### PROCESS STEP 3_1 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE ####
+
 def scan_motifs(file_name):
-    '''This function scans a protein sequence with motifs from the PROSITE database
-    sequences: the fasta sequence of the protein asked for
+    '''This function takes the fasta sequence as an input and extracts the sequences to a separate file
     '''
-    # inform the user that the report is being prepared, so that they can make an informed decision
+    # inform the user that the report is being prepared
     print('\nWe will now scan the protein sequences with motifs from the PROSITE database.')
-    #TODO: the purpose of this is??
+    #TODO: explain to the user the purpose of this
     time.sleep(0.5)
     print("Preparing your report, please wait...")
+
+    # split the sequences within the fasta file into individual sequences
+    # get the content of the fasta file into a variable and splitting the content into individual sequences
+    sequences = subprocess.getoutput("cat "+str(file_name)+".fasta").split('>')[1:]
+
+    # define an empty dictionary to collect seq_data
+    seq_data_dict = {}
+    # extract the sequence data of each sequence in the fasta file
+    for sequence in sequences:
+        # split the sequence into individual
+        lines = sequence.split('\n')
+        header = lines[0].replace(' ', '')
+        # join all the lines together to get the whole sequence
+        seq_data = ''.join(lines[1:])
+        # append the sequence data to the dictionary so we can use it outside of the for loop
+        seq_data_dict.append(seq_data)
+        # use a dictionary to save each item in result_name_list as a value and its index as a key
+        result_name_dict = {}
+        for i in range(result_len):
+            result_name_dict[i] = result_name[i]
+        # save the sequence data to a new file
+        with open(f"{header}" + ".fasta", "w") as f:
+            f.write(seq_data)
+            f.close()
+
+
+    return min_seq_len, max_seq_len
+
+    # use patmatmotifs to scan a protein sequence with motifs from the PROSITE database
     # scan the protein sequences with motifs form the PROSITE database and save the report as file_name.patmatmotifs.txt
     subprocess.call("patmatmotifs -sequence "+str(file_name)+".fasta -outfile "+str(file_name)+".patmatmotifs.out", shell = True)
-    # TODO: print and save 1) the names of any known motifs found with the sequence 2) HitCount 3) the number of times each motif was found (if applicable)
-    # TODO: 4) the positions of each motif found in the sequence 5) the length of the motif found
-    # TODO: save 1-5 in a pandas dataframe and save the dataframe as file_name.patmatmotifs.csv
+    # TODO: print and save 1) the names of any known motifs found with the sequence (header) 2) HitCount
+    # TODO: save them in a pandas dataframe and save the dataframe as file_name.patmatmotifs.csv
     # print out the report to the screen
     subprocess.call("cat "+str(file_name)+".patmatmotifs.out", shell=True)
 
@@ -590,3 +618,8 @@ def scan_motifs(file_name):
 # if true, save all the files into a new directory
 
 #############################################################
+
+
+    # TODO: print and save 1) the names of any known motifs found with the sequence (header) 2) HitCount 3) the number of times each motif was found (if applicable)
+    # TODO: 4) the positions of each motif found in the sequence 5) the length of the motif found
+    # TODO: save 1-5 in a pandas dataframe and save the dataframe as file_name.patmatmotifs.csv
