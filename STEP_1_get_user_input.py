@@ -424,8 +424,35 @@ except KeyboardInterrupt:
 
 ##### STEP 2 DETERMINING AND PLOTTING THE LEVEL OF CONSERVATION BETWEEN THE PROTEIN SEQUENCES ####
 ##### PROCESS STEP 2_1 LIMIT PROTEIN SEQUENCE NUMBERS FROM FASTA FILE #####
-# ask the user whether they want to limit the number of sequences to use for the conervsation analysis
+
+# define a function to get the minimum and maximum length of the protein sequences within the fasta file
 def get_min_and_max_seq_len():
+    '''This function takes the minimum and maximum length of the protein sequences within the fasta file
+    and returns the minimum and maximum length as a tuple'''
+    # count the sequence length for each sequence in the fasta file
+    # get the content of the fasta file into a variable and splitting the content into individual sequences
+    sequences = subprocess.getoutput("cat "+str(file_name)+".fasta").split('>')[1:]
+    # create a list to collect the sequence lengths
+    seq_lens = []
+    # count the length of each sequence and append seq_len into seq_lens
+    for sequence in sequences:
+        lines = sequence.split('\n')
+        header = lines[0]
+        seq_data = ''.join(lines[1:])
+        # count the length of each sequence
+        seq_len = len(seq_data)
+        seq_lens.append(seq_len)
+
+    # get the minimum and maximum length of the protein sequences within the fasta file
+    min_seq_len = min(seq_lens)
+    max_seq_len = max(seq_lens)
+    # return the minimum and maximum length as a tuple
+    return min_seq_len, max_seq_len
+
+# ask the user whether they want to limit the number of sequences to use for the conervsation analysis
+def define_min_and_max_seq_len():
+    '''This function allows the user to decide whether they'd like to limit the number of sequences to use for the
+    conservation analysis and to limit the seq num by defining a min and max sequence length.'''
     # inform the user how many sequences there are in the fasta file generated from the last step, so that they can make an informed decision
     print('\nWe will now determine and plot the level of conservation between the protein sequences.')
     time.sleep(0.5)
@@ -433,11 +460,11 @@ def get_min_and_max_seq_len():
     time.sleep(0.5)
     print('\nAn advantage of this is so that the analysis focuses on the most biologically meaningful data and that as little noise as possible is in the conservation plot.')
     time.sleep(0.5)
-    print('\nThere are ',int(seq_count),' sequences in your fasta file generated from the first step.')
-    #TODO: inform the user how long the shortest sequence is and the longest, so that they can make an informed decision
-    subprocess.getoutput("grep -c '>' "+str(file_name)+".fasta")
-
-
+    print('\nThere are ',int(seq_count),' sequences in your fasta file (containing protein sequences found on NCBI according to your search term).')
+    # inform the user how long the shortest sequence is and the longest, so that they can make an informed decision
+    min_seq_len, max_seq_len = get_min_and_max_seq_len()
+    print('\nThe shortest sequence is ',min_seq_len,' amino acids long,'
+                                                    '\nand the longest sequence is ', max_seq_len,' amino acids long.')
     time.sleep(0.5)
     print('\nEnter \'y\' if you\'d like to reduce the number of sequences to use in the conservation analysis, and \'n\' if you want to skip this.')
     time.sleep(0.5)
@@ -446,23 +473,21 @@ def get_min_and_max_seq_len():
     if confirmation == True:
         print("The programme will now prompt you to enter the minimum and maximum length of the protein sequences you'd like to use in the conservation analysis.")
         while True:
-            min_seq_len = int(input(
+            def_min_seq_len = int(input(
                 'Please enter (in integer) the MINIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
             time.sleep(0.5)
-            max_seq_len = int(input(
+            def_max_seq_len = int(input(
                 'Please enter (in integer) the MAXIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
             time.sleep(0.5)
             # remind the user of their input
-            print("The minimum and maximum length of the protein sequences you'd like to use in the conservation analysis are "+ str(min_seq_len)+ " and "+ str(max_seq_len)+ ".")
-
-            #TODO: how many sequences are there NOW after this filtration step?
+            print("The minimum and maximum length of the protein sequences you'd like to use in the conservation analysis are "+ str(def_min_seq_len)+ " and "+ str(def_max_seq_len)+ ".")
 
             # ask whether the user would like to proceed with the entered values
             confirmation = get_confirmation()
             if confirmation == True:
                 print("Thank you, proceeding with the analysis...")
                 time.sleep(0.5)
-                return max_seq_len, min_seq_len
+                return def_min_seq_len,def_max_seq_len
             else:
                 print("Taking you back to the last step...")
                 time.sleep(0.5)
@@ -470,12 +495,12 @@ def get_min_and_max_seq_len():
     else:
         print("Thank you, proceeding with the analysis...")
         # set the min and max length to None so that the analysis will use ALL the sequences in the fasta file generated from the first step.
-        max_seq_len = None
-        min_seq_len = None
-        return max_seq_len, min_seq_len
+        def_max_seq_len = None
+        def_min_seq_len = None
+        return def_min_seq_len,def_max_seq_len
 
 # get the minimum and maximum length of the protein sequences to use in the conservation analysis
-max_seq_len, min_seq_len = get_min_and_max_seq_len()
+def_min_seq_len, def_max_seq_len = define_min_and_max_seq_len()
 
 ##### PROCESS STEP 2_1 LIMIT PROTEIN SEQUENCE NUMBERS FROM FASTA FILE #####
 
@@ -501,25 +526,35 @@ def plot_conservation(file_name):
     subprocess.call("eog "+str(file_name)+".1.png", shell=True)
 
 # this is where we use pullseq to allow the user to limit the number of sequences
-# # to make life easier, we can alias pullseq to /localdisk/data/BPSM/ICA2/pullseq
-# subprocess.call('alias pullseq='+'"/localdisk/data/BPSM/ICA2/pullseq"',shell= True)
 # make sure the user entered integers for min and max length of sequences
-if type(min_seq_len) == int and type(max_seq_len) == int:
-    trimmed_seq = subprocess.getoutput("/localdisk/data/BPSM/ICA2/pullseq -i "+str(file_name)+".fasta -m "+str(min_seq_len)+" -a "+str(max_seq_len))
+if type(def_min_seq_len) == int and type(def_max_seq_len) == int:
+    trimmed_seq = subprocess.getoutput("/localdisk/data/BPSM/ICA2/pullseq -i "+str(file_name)+".fasta -m "+str(def_min_seq_len)+" -a "+str(def_max_seq_len))
     # save the trimmed sequence to a new file
-    new_file_name = str(str(file_name) + "_min" + str(min_seq_len) + "_max" + str(max_seq_len))
+    new_file_name = str(str(file_name) + "_min" + str(def_min_seq_len) + "_max" + str(def_max_seq_len))
     with open(f"{new_file_name}" + ".fasta", "w") as f:
         f.write(trimmed_seq)
         f.close()
     # plot the conservation of the trimmed sequence
     plot_conservation(new_file_name)
 # if the user did not enter min and max length of sequences, then proceed with the analysis
-elif type(min_seq_len) == None and type(max_seq_len) == None:
+elif type(def_min_seq_len) == None and type(def_max_seq_len) == None:
     new_file_name = file_name
     plot_conservation(new_file_name)
 else:
     print("Something went wrong, please try again.")
     sys.exit(1)
+
+# time.sleep(0.5)
+# # TODO: how many sequences are there NOW after this filtration step?
+# seq_count = subprocess.getoutput("grep -c '>' " + str(file_name) + ".fasta")
+# print('\nThere are now ', int(seq_count),
+#       ' sequences in your fasta file after defining minimum and maximum sequence length.')
+# TODO: GET CONFIRMATION
+# if true, continue with the current new_file_name
+# if false, do define_min_and_max_seq_len() again
+
+
+
 
 ##### END OF STEP 2 #####
 
