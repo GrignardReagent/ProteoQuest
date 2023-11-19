@@ -124,6 +124,16 @@ def protein_esearch(search_term):
     file_name = (file_name.replace("[", "").replace("]", "").replace("'", "")
                  .replace(",", "").replace(".", "").replace("-", "")
                  .replace("*", ""))
+
+    # give the user a choice to open a new folder to save any outputs from the search result
+    print(f"Would you like to proceed to open a new folder called {file_name} from now on?")
+    confirmation = get_confirmation()
+    # if the user does want to proceed, then we make a new folder called file_name and change directory to it
+    if confirmation == True:
+        os.makedirs(f"{file_name}",exist_ok=True)
+        os.chdir(f"{file_name}")
+        os.getcwd()
+
     # save the output to a file
     with open(f"{file_name}.fasta", "w") as f:
         f.write(esearch_result)
@@ -494,19 +504,11 @@ if type(def_min_seq_len) == int and type(def_max_seq_len) == int:
         f.close()
     # plot the conservation of the trimmed sequence
     plot_conservation(new_file_name)
-#todo: error trapping if the user enters non-integers for min and max length of sequences
 else:
     print("Please enter integers for the minimum and maximum length of the protein sequences you'd like to use in the conservation analysis.")
     sys.exit(1)
 
-# time.sleep(0.5)
-# # TODO: how many sequences are there NOW after this filtration step?
-# seq_count = subprocess.getoutput("grep -c '>' " + str(file_name) + ".fasta")
-# print('\nThere are now ', int(seq_count),
-#       ' sequences in your fasta file after defining minimum and maximum sequence length.')
-# TODO: GET CONFIRMATION
-# if true, continue with the current new_file_name
-# if false, do define_min_and_max_seq_len() again
+
 
 ##### END OF STEP 2 #####
 
@@ -674,6 +676,9 @@ os.chdir("..") # PWD = where this script is stored.
 ##### END OF STEP 3 #####
 
 ##### STEP 4  #####
+##### PROCESS STEP 4_1  ####
+
+
 
 
 # TODO: ask the user if they want to save all the files into a new directory
