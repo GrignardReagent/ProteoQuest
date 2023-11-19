@@ -25,6 +25,7 @@ print("Welcome to the ProteoQuest programme!"
       "\nThen, it will scan the protein sequences of interest with motifs from the PROSITE database and plot any motifs found and their counts;"
       "\nFinally, it will calculate protein statistics and plot anything meaningful in a bar plot"
       "\nYou can use CTRL + C to abort the programme at any point and restart the programme.")
+time.sleep(0.5)
 
 ##### PROCESS STEP 1_1: GET USER INITIAL INPUT OF TAXONOMY #####
 ## This step takes the user's TAXONOMY input and store it as a variable
@@ -123,6 +124,7 @@ def protein_esearch(search_term):
     print("Your search term returned ", seq_count, " results.")
     time.sleep(1)
     print("Proceeding to create a fasta sequence file for the search results...")
+    time.sleep(0.5)
 
     # the file_name cannot contain any special characters or spaces, so remove any from the search term
     file_name = search_term.replace(" ", "_")
@@ -132,6 +134,7 @@ def protein_esearch(search_term):
 
     # give the user a choice to open a new folder to save any outputs from the search result
     print(f"Would you like to proceed to open a new folder called {file_name} from now on?")
+    time.sleep(0.5)
     confirmation = get_confirmation()
     # if the user does want to proceed, then we make a new folder called file_name and change directory to it
     if confirmation == True:
@@ -145,6 +148,7 @@ def protein_esearch(search_term):
         f.write(esearch_result)
         f.close()
         print(f"Output saved to {file_name}.fasta in your current working directory.")
+        time.sleep(0.5)
     return esearch_result,file_name, seq_count
 
 # define a function to get user_input as taxonomic group
@@ -156,12 +160,16 @@ def get_input():
     while True:
         if quality_check_user_input(user_input):
             print("The taxonomic group you have specified is valid.")
+            time.sleep(0.5)
             print(f"The taxonomic group you have specified is: {user_input}")
+            time.sleep(0.5)
             print("Please wait...")
+            time.sleep(0.5)
             return user_input
         # if the user has not specified a valid taxonomic group then they need to specify the input again
         else:
             print("The taxonomic group you have specified is not valid. Please try again.")
+            time.sleep(0.5)
             # ask user to specify the taxonomic group they'd like to search for AGAIN
             user_input = input("Which taxonomic group would you like to search for? Enter its name to proceed: ")
             continue
@@ -171,7 +179,6 @@ def get_input():
 # save user_input as a global variable, but also allow the user to interrupt the programme
 try:
     user_input = get_input()
-    # print(str(user_input)) # debug line
 except KeyboardInterrupt:
     print("\nProgramme interrupted by the user.")
     sys.exit(0)
@@ -201,6 +208,7 @@ def get_scientific_names(user_input):
         print("Failure, warning or error was returned, possibly due to input not being a taxonomic group..."
               "\nPlease check your input spelling and try again!"
               "\nYour input was",str(user_input))
+        time.sleep(0.5)
         sys.exit(1)
 
     # saving every item within scientific_names into a list
@@ -236,6 +244,7 @@ def refine_tax_search_terms(user_input):
         # (this should not happen, but a sanity check is always good!)
         if len(result_name_dict) == 0:
             print("It looks like you haven't yet provided a valid input.")
+            time.sleep(0.5)
             # use the get_input function
             user_input = get_input()
             # once the condition for scientific_name_list != 0 is satisfied, continue to the next if statement
@@ -249,22 +258,25 @@ def refine_tax_search_terms(user_input):
                   "\nTo start over, use CTRL + C")
             time.sleep(0.5)
             print('To proceed further with the current search term, please enter \'y\', or refine your search term further by entering \'n\'')
+            time.sleep(0.5)
             user_confirmation = get_confirmation()
             # if the user would like to proceed, then we can go ahead with the user_input
             if user_confirmation == True:
                 result_name = result_name_dict[0]
                 print("Thank you, proceeding with the taxonomic group ", result_name)
+                time.sleep(0.5)
                 return result_name
 
             # if the user does not want to proceed, then we can further refine the search
             elif user_confirmation == False:
                 print("Let's refine your results further...")
-                # refining the existing parameters
-                # print_refining_instructions()
+                time.sleep(0.5)
                 print("Your initial search term was ", user_input,
                       "\nPlease update your search term (this will take you back to the start of the programme)")
+                time.sleep(0.5)
                 user_input = get_input()
                 print("Your updated search term is ", user_input)
+                time.sleep(0.5)
                 # ask the user if they'd like to proceed with the updated search term
                 user_confirmation = get_confirmation()
                 result_name_dict, result_len, result_name, user_result = get_scientific_names(user_input)
@@ -292,24 +304,27 @@ def refine_tax_search_terms(user_input):
                     break
                 except:
                     print("Please enter a valid index.")
+                    time.sleep(0.5)
             print("Your updated search term is ", result_name)
             # ask the user if they'd like to proceed with the updated search term
             user_confirmation = get_confirmation()
-            # print(user_confirmation)  # debug line
             # if the user would like to proceed, then we can go ahead with the user_input
             if user_confirmation == True:
                 result_name = result_name_dict[0]
                 print("Thank you, proceeding with taxonomic group ", result_name)
+                time.sleep(0.5)
                 return result_name
             # if the user does not want to proceed, then exit the programme.
             else:
                 print("Thank you for using the programme.")
+                time.sleep(0.5)
                 sys.exit(0)
 # get the user input (taxonomic group) and refine it
 try:
     user_input = refine_tax_search_terms(user_input)
 except KeyboardInterrupt:
     print("\nProgramme interrupted by the user.")
+    time.sleep(0.5)
     sys.exit(0)
 
 # define a function which takes the protein type as a further input before saving both user_input and protein_type
@@ -330,17 +345,20 @@ def get_search_term():
     if partial_protein == 'y':
         partial_protein = "PARTIAL"
         search_term = str(str(user_input) + "[ORGN]" + " AND " + str(protein_type) + "[PROT] "+str(partial_protein))
-        print("Your search term is ", search_term)  # debug line
+        print("Your search term is ", search_term)
+        time.sleep(0.5)
         return search_term
     elif partial_protein == 'n':
         partial_protein = "NOT PARTIAL"
         search_term = str(str(user_input) + "[ORGN]" + " AND " + str(protein_type) + "[PROT] "+str(partial_protein))
-        print("Your search term is ", search_term)  # debug line
+        print("Your search term is ", search_term)
+        time.sleep(0.5)
         return search_term
     else:
         # get the user_input and protein_type as search_term
         search_term = str(str(user_input) + "[ORGN]" + " AND " + str(protein_type) + "[PROT]")
-        print("Your search term is ",search_term)  # debug line
+        print("Your search term is ",search_term)
+        time.sleep(0.5)
         return search_term
 
 # get the search term
@@ -462,10 +480,12 @@ def define_min_and_max_seq_len():
     # if the user does not want to apply any min or max length for sequences, then proceed with the analysis
     else:
         print("Thank you, proceeding with the analysis with default minimum and maxium sequence lengths...")
+        time.sleep(0.5)
         # give def_min_seq_len and def_max_seq_len default values
         def_max_seq_len, def_min_seq_len = int(max_seq_len), int(min_seq_len)
         print("The minimum and maximum length of the protein sequences you'd like to use in the conservation analysis are " + str(
                 def_min_seq_len) + " and " + str(def_max_seq_len) + ".")
+        time.sleep(0.5)
 
         return def_min_seq_len,def_max_seq_len
 
@@ -481,6 +501,7 @@ def plot_conservation(file_name):
     sequences: the fasta sequence of the protein asked for
     '''
     print("Preparing your plot, please wait...")
+    time.sleep(0.5)
     # use clustalo to get sequence alignment
     try:
         subprocess.call("clustalo --infile="+str(file_name)+".fasta --outfile="+ str(file_name)+ ".msf --threads=200 --force", shell = True)
@@ -553,7 +574,7 @@ def extract_seq(file_name):
             f.close()
     # inform the user where the files are saved
     print('The extracted sequences are saved in a new folder called', f'{new_dir}', '.')
-
+    time.sleep(0.5)
     # return the dictionary of sequence data and the header
     return seq_data_dict
 
@@ -589,6 +610,7 @@ os.makedirs(f"{new_dir}",exist_ok=True)
 print("Would you like to scan for simple post-translational modification sites? (y/n)"
       "\nIf you choose \'n\', then simple post-translational modification sites will not be reported:"
       "myristyl, asn_glycosylation,camp_phospho_site, pkc_phospho_site, ck2_phospho_site, and tyr_phospho_site.")
+time.sleep(0.5)
 # ask the user if they'd like to scan simple post-translational modifications
 confirmation = get_confirmation()
 # if the user would like to scan for simple post-translational modifications, continue with the scan
@@ -685,9 +707,13 @@ os.chdir("..") # PWD = sequence_{new_file_name}
 ##### PROCESS STEP 4_1 RUN PEPSTATS TO CALCULATE THE STATISTICS OF THE PROTEIN PROPERTIES ####
 # introducing this section and pepstats and things we'll do here
 print("We will now calculate and showcase the protein statistics using pepstats. ")
+time.sleep(0.5)
 print('The pepstats tool provides valuable information such as molecular weight, charge, isoelectric point, and more.')
+time.sleep(0.5)
 print("We will run pepstats on a set of protein sequences and extract key statistics to gain insights into the physicochemical properties of the proteins. ")
+time.sleep(0.5)
 print("\nThe calculated values will be further analysed and visualised to provide a comprehensive understanding of the protein dataset.")
+time.sleep(0.5)
 
 # create a new directory to save the outfiles from patmatmotifs
 new_dir = str("pepstats_"+str(new_file_name))
@@ -706,6 +732,7 @@ subprocess.call("mv *.pepstats ./"+str(new_dir), shell=True)
 
 print('The protein statistics report for each sequenece in the fasta file'
       'is saved in a new folder called', f'{new_dir}', '.')
+time.sleep(0.5)
 
 # change directory to {new_dir}:
 os.chdir(str(new_dir))
@@ -784,7 +811,9 @@ stats_df = pd.DataFrame.from_dict(seq_stats_dict, orient='index')
 stats_df.to_csv(f'{new_file_name}_stats.csv',index=True)
 
 print('These are the protein statistics:')
+time.sleep(0.5)
 print(stats_df)
+time.sleep(0.5)
 print('A summary file for all the sequence statistics is saved '
       'in a csv file called '+str(new_file_name)+'_stats.csv.')
 time.sleep(0.5)
@@ -793,6 +822,7 @@ time.sleep(0.5)
 
 ##### PROCESS STEP 4_3 PLOT THE STATISTICS IN BAR PLOTS ####
 print('Plotting this in bar plots...')
+time.sleep(0.5)
 # plotting this csv file
 plt.subplot(2, 2, 1)
 stats_df['Molecular Weight'].plot(kind='bar', title='Molecular Weight')
@@ -827,6 +857,7 @@ plt.suptitle("Protein Statistics", fontsize = 16)
 # adjust the subplot parameters so that they dont overlap each other
 plt.tight_layout()
 print('Opening the plot in a new window to show the plot, please close it after viewing to proceed...')
+time.sleep(0.5)
 plt.show()
 # saving the figure
 plt.savefig(f"{new_file_name}_stats.png", transparent=True)
@@ -840,11 +871,12 @@ os.chdir("..") # PWD = sequence_{new_file_name}
 
 # work-up:
 print('Going back to the directory where we started...')
+time.sleep(0.5)
 # deleting the individual fasta files in the sequences_{new_file_name} folder
 subprocess.call("rm -f *.fasta", shell=True)
 # go back to the original directory
 os.chdir("..") # PWD = where this script is stored.
-print("Thank you for using the ProteoQuest programme, exiting...")
+print("Thank you for using the ProteoQuest programme, exiting now...")
 time.sleep(2)
 sys.exit(0)
 
