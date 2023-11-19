@@ -137,3 +137,81 @@ print(input("Which o",scientific_name_list))
 # for example: esearch -db nucleotide -query "Cosmoscarta[organism]"
 # use of efetch for the sequence data:
 # esearch -db protein -query "Homo sapiens" | efetch -format fasta >Homosapiens.fasta
+
+
+def quality_check_user_uid(user_input):
+    '''This function checks the quality of the user's UID input. It checks whether the user has specified a valid UID or not.
+    If the user has specified a valid taxonomic group, then the function returns True, otherwise it returns False.'''
+    # screen for invalid inputs
+    # if the user_input is empty, then the user has not specified a taxonomic group and they need to specify the input again
+    if re.search("^$", user_input):  # using re, search for anything that contains nothing betweent the start and end of the string
+        print("No input was given.")
+        return False
+
+    try:
+        # run esearch in the protein database on the commandline and save it to esearch_user_input
+        esearch_user_input = subprocess.getoutput("esearch -db protein -spell -query "+'"' + str(user_input) +'"'+"| efetch -format fasta")
+    except subprocess.CalledProcessError as e:
+        print(
+            f"Error executing subprocess: {e}, please run the programme again and provide an appropriate UID.")
+        # handle the error or exit the programme
+        sys.exit(1)
+
+    # if esearch returns an empty line on NCBI, return False
+    if re.search("^$", esearch_user_input):
+        print("No result was found with that input")
+        return False
+
+    # if esearch returns a warning or error on NCBI, return False, else True
+    if "FAILURE" in esearch_user_input or "WARNING" in esearch_user_input or "ERROR" in esearch_user_input:
+        print("Failure, warning or error was returned")
+        return False
+    else:
+        return True
+
+
+# define a function to get user_input for UID
+def user_input_UID_True():
+    '''This function gets user_input if the user is inputting an UID as a search item.
+     This function will return a fasta sequence for the UID requested'''
+    user_input = input("Please enter a UID: ")
+    # check the quality of the user's input
+    while True:
+        if quality_check_user_uid(user_input):
+            print("The UID you have specified is valid.")
+            print(f"The UID you have specified is: {user_input}")
+            print("Please wait...")
+            esearch_result,file_name, seq_count = protein_esearch(user_input)
+            return esearch_result
+        # if the user has not specified a valid taxonomic group then they need to specify the input again
+        else:
+            print("The UID you have specified is not valid. Please try again.")
+            # ask user to specify the taxonomic group they'd like to search for AGAIN
+            user_input = input("Please enter a UID: ")
+            continue
+    return user_input
+
+# define a function to get user_input
+def get_input():
+    '''This function collects the user input.'''
+    # ask the user if they'd like to search for a UID or start from a taxonomy group
+    while True:
+        # ask the user if the search term is a UID or a defined search term
+        user_search_type = input("Is your search term a protein UID? (y/n)").lower()
+        # if the search term entered by the user is a TAXONOMIC GROUP i.e. not UID
+        if user_search_type == 'n':
+            # pass through the function to check the quality of the user's input
+            user_input = user_input_UID_False()
+            return user_input
+
+        # if the search term entered by the user is a refined search term or a UID
+        elif user_search_type == 'y':
+            # pass through the function to check the quality of the user's input
+            uid_input = user_input_UID_True()
+            # we don't want to return the UID, because it would cause chaos!
+            # exiting the programme so that UID input is not used for future functions
+            sys.exit(0)
+
+        # if the search type is not properly defined
+        else:
+            print("Invalid input. Please enter 'y' or 'n'")

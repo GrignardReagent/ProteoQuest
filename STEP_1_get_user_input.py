@@ -12,14 +12,14 @@ import matplotlib.pyplot as plt
 # and then asks them which search item they'd like to search for and what search type this search item is.
 # then it asks whether they'd like to search for a partial match or not.
 
-# TODO: Intro to the programme
 # welcome the user to the programme, introduce what the programme does and what input it will take from the user
 print("Welcome to the E-Search programme!"
       "\nThis programme is used for searching protein sequences within the protein database"
-      "\nIt will start by asking the user to specify their search terms, and this can be either of the following:"
-      "\n1) The taxonomic group name, OR"
-      "\n2) The UID* or the GI number of the protein of interest, if you know it."
-      "\n *UID = Unique Identifier; GI = UID common name for proteins"
+      "\nIt will start by asking the user to specify their search terms step by step:"
+      "\n1) The taxonomic group name"
+      "\n2) The protein group"
+      "\n3) Partial or not partial search"
+      "\nThe user will be given an opportunity to refine the whole search term before any protein sequence is analysed."
       "\nYou can use CTRL + C to abort the programme at any point and restart the programme.")
 
 
@@ -129,43 +129,12 @@ def protein_esearch(search_term):
         f.write(esearch_result)
         f.close()
         print(f"Output saved to {file_name}.fasta in your current working directory.")
-        print("If you entered a UID, please execute the script for the next step.")
     return esearch_result,file_name, seq_count
 
-# define a function to check the quality of the user's UID input
-def quality_check_user_uid(user_input):
-    '''This function checks the quality of the user's UID input. It checks whether the user has specified a valid UID or not.
-    If the user has specified a valid taxonomic group, then the function returns True, otherwise it returns False.'''
-    # screen for invalid inputs
-    # if the user_input is empty, then the user has not specified a taxonomic group and they need to specify the input again
-    if re.search("^$", user_input):  # using re, search for anything that contains nothing betweent the start and end of the string
-        print("No input was given.")
-        return False
-
-    try:
-        # run esearch in the protein database on the commandline and save it to esearch_user_input
-        esearch_user_input = subprocess.getoutput("esearch -db protein -spell -query "+'"' + str(user_input) +'"'+"| efetch -format fasta")
-    except subprocess.CalledProcessError as e:
-        print(
-            f"Error executing subprocess: {e}, please run the programme again and provide an appropriate UID.")
-        # handle the error or exit the programme
-        sys.exit(1)
-
-    # if esearch returns an empty line on NCBI, return False
-    if re.search("^$", esearch_user_input):
-        print("No result was found with that input")
-        return False
-
-    # if esearch returns a warning or error on NCBI, return False, else True
-    if "FAILURE" in esearch_user_input or "WARNING" in esearch_user_input or "ERROR" in esearch_user_input:
-        print("Failure, warning or error was returned")
-        return False
-    else:
-        return True
-
-# define a function to get user_input for the taxonomic group
-def user_input_UID_False():
-    '''This function gets user_input if the user is not inputting an UID as a search item'''
+# define a function to get user_input as taxonomic group
+def get_input():
+    '''This function collects the user input.'''
+    # ask the user to start from defining a taxonomic group
     user_input = input("Which taxonomic group would you like to search for? Enter its name to proceed:")
     # check the quality of the user's input
     while True:
@@ -182,51 +151,6 @@ def user_input_UID_False():
             continue
     return user_input
 
-# define a function to get user_input for UID
-def user_input_UID_True():
-    '''This function gets user_input if the user is inputting an UID as a search item.
-     This function will return a fasta sequence for the UID requested'''
-    user_input = input("Please enter a UID: ")
-    # check the quality of the user's input
-    while True:
-        if quality_check_user_uid(user_input):
-            print("The UID you have specified is valid.")
-            print(f"The UID you have specified is: {user_input}")
-            print("Please wait...")
-            esearch_result,file_name, seq_count = protein_esearch(user_input)
-            return esearch_result
-        # if the user has not specified a valid taxonomic group then they need to specify the input again
-        else:
-            print("The UID you have specified is not valid. Please try again.")
-            # ask user to specify the taxonomic group they'd like to search for AGAIN
-            user_input = input("Please enter a UID: ")
-            continue
-    return user_input
-
-# define a function to get user_input
-def get_input():
-    '''This function collects the user input.'''
-    # ask the user if they'd like to search for a UID or start from a taxonomy group
-    while True:
-        # ask the user if the search term is a UID or a defined search term
-        user_search_type = input("Is your search term a protein UID? (y/n)").lower()
-        # if the search term entered by the user is a TAXONOMIC GROUP i.e. not UID
-        if user_search_type == 'n':
-            # pass through the function to check the quality of the user's input
-            user_input = user_input_UID_False()
-            return user_input
-
-        # if the search term entered by the user is a refined search term or a UID
-        elif user_search_type == 'y':
-            # pass through the function to check the quality of the user's input
-            uid_input = user_input_UID_True()
-            # we don't want to return the UID, because it would cause chaos!
-            # exiting the programme so that UID input is not used for future functions
-            sys.exit(0)
-
-        # if the search type is not properly defined
-        else:
-            print("Invalid input. Please enter 'y' or 'n'")
 
 # save user_input as a global variable, but also allow the user to interrupt the programme
 try:
@@ -282,8 +206,6 @@ def get_scientific_names(user_input):
     #     except:
     #         print("Please enter a valid index.")
 
-    # print("The search term ", user_input, " returns the following results from NCBI:",
-    #       user_result)
     return result_name_dict, result_len, result_name, user_result
 
 # execute get_scientific_names to save the outputs as global variables,
@@ -471,20 +393,46 @@ def define_min_and_max_seq_len():
     confirmation = get_confirmation()
     if confirmation == True:
         print("The programme will now prompt you to enter the minimum and maximum length of the protein sequences you'd like to use in the conservation analysis.")
+        time.sleep(0.5)
         while True:
-            def_min_seq_len = int(input(
-                'Please enter (in integer) the MINIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
+            while True:
+                # get the minimum length of the protein sequences you'd like to use in the conservation analysis
+                # error trap
+                try:
+                    def_min_seq_len = int(input(
+                        'Please enter (in integer) the MINIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
+                    break
+                except ValueError:
+                    print("Please enter an integer.")
             time.sleep(0.5)
-            def_max_seq_len = int(input(
-                'Please enter (in integer) the MAXIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
+            while True:
+                # get the maximum length of the protein sequences you'd like to use in the conservation analysis
+                # error trap
+                try:
+                    def_max_seq_len = int(input(
+                        'Please enter (in integer) the MAXIMUM length of the protein sequences you\'d like to use in the conservation analysis:'))
+                    break
+                except:
+                    print("Please enter an integer.")
+                    continue
             time.sleep(0.5)
             # remind the user of their input
             print("The minimum and maximum length of the protein sequences you'd like to use in the conservation analysis are "+ str(def_min_seq_len)+ " and "+ str(def_max_seq_len)+ ".")
             # get the sequence count after trimming the sequences
-            trimmed_seq_count = subprocess.getoutput(
-                "/localdisk/data/BPSM/ICA2/pullseq -i " + str(file_name) + ".fasta -m " + str(
-                    def_min_seq_len) + " -a " + str(def_max_seq_len)+"| grep -c '>'")
+            try:
+                trimmed_seq_count = subprocess.getoutput(
+                    "/localdisk/data/BPSM/ICA2/pullseq -i " + str(file_name) + ".fasta -m " + str(
+                        def_min_seq_len) + " -a " + str(def_max_seq_len)+"| grep -c '>'")
+            except:
+                print("The number of sequences in your trimmed fasta file is empty. Please enter a valid minimum and maximum length.")
+                time.sleep(0.5)
+
             print("The number of sequences in your trimmed fasta file is ", trimmed_seq_count)
+            time.sleep(0.5)
+            # error trap: if max and min range is not appropriate
+            if int(trimmed_seq_count) == 0 or "not found" in trimmed_seq_count or 'Error' in trimmed_seq_count:
+                print("Please enter a valid minimum and maximum length. (Do NOT proceed!)")
+                time.sleep(0.5)
 
             # ask whether the user would like to proceed with the entered values
             confirmation = get_confirmation()
