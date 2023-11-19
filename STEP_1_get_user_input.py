@@ -607,7 +607,6 @@ subprocess.call("mv *.patmatmotifs ./"+new_dir, shell=True)
 
 # change directory to {new_dir}:
 os.chdir(str(new_dir))
-df = pd.DataFrame(columns=['sequence', 'motif_name', 'motif_count'])
 # define a dictionary to collect seq_name as the key and motif names and count as values (a nested dict)
 seq_motif_dict = {}
 # for each sequence in the folder, read the patmatmotifs report and extract the motif names and counts
@@ -648,10 +647,15 @@ df = pd.DataFrame.from_dict(seq_motif_dict, orient='index')
 # fill the NaN values with 0
 df = df.fillna(0)
 # convert the dataframe to a csv file
-df.to_csv(f'{new_file_name}_motif_counts.csv',index=False)
+df.to_csv(f'{new_file_name}_motif_counts.csv',index=True)
+
+
 print('A summary file for all the sequences scanned with motifs from the PROSITE data base is saved'
       'in a csv file called '+str(new_file_name)+'_motif_count.csv.')
 time.sleep(0.5)
+print('The summary file looks like this:')
+print(df)
+
 print('Plotting this in a bar plot...')
 # plotting this csv file
 df.plot.bar(stacked = True)
@@ -672,15 +676,13 @@ os.chdir("..") # PWD = sequence_{new_file_name}
 ##### END OF PROCESS STEP 3_2 #####
 ##### END OF STEP 3 #####
 
-##### STEP 4  #####
+##### STEP 4 USING PEPSTATS TO RETRIEVE PROTEIN STATISTICS #####
 ##### PROCESS STEP 4_1 RUN PEPSTATS TO CALCULATE THE STATISTICS OF THE PROTEIN PROPERTIES ####
-#TODO: introducing this section and pepstats and things we'll do here
-
-# executing seq_data_dict and saving the dictionary as a global variable
-seq_data_dict = extract_seq(new_file_name) #TODO:no need to do this again
-
-# get the list of all the sequences in the folder
-seq_list = subprocess.getoutput("ls *.fasta").split('\n') #TODO:no need to do this again
+# introducing this section and pepstats and things we'll do here
+print("We will now calculate and showcase the protein statistics using pepstats. ")
+print('The pepstats tool provides valuable information such as molecular weight, charge, isoelectric point, and more.')
+print("We will run pepstats on a set of protein sequences and extract key statistics to gain insights into the physicochemical properties of the proteins. ")
+print("\nThe calculated values will be further analysed and visualised to provide a comprehensive understanding of the protein dataset.")
 
 # create a new directory to save the outfiles from patmatmotifs
 new_dir = str("pepstats_"+str(new_file_name))
@@ -688,76 +690,126 @@ new_dir = str("pepstats_"+str(new_file_name))
 # 'exist_ok = True' makes sure no error is returned if the directory already exists
 os.makedirs(f"{new_dir}",exist_ok=True)
 
-#TODO: modify the section to suit
 # for loop to scan each sequence with pepstats
 for seq in seq_list:
-    # use pepstats to
-    # scan the protein sequences with motifs form the PROSITE database and save the report as {seq}.patmatmotifs
-    subprocess.call("patmatmotifs -sequence "+ str(seq)
-                    +" -outfile "+str(seq)+".patmatmotifs", shell = True)
-
+    # use pepstats to calculate the statistics of the protein properties and save the report as {seq}.pepstats
+    subprocess.call("pepstats -sequence "+ str(seq)
+                    +" -outfile "+str(seq)+".pepstats", shell = True)
 
 # move every patmatmotifs report to the new directory
-subprocess.call("mv *.patmatmotifs ./"+new_dir, shell=True)
+subprocess.call("mv *.pepstats ./"+str(new_dir), shell=True)
+
+print('The protein statistics report for each sequenece in the fasta file'
+      'is saved in a new folder called', f'{new_dir}', '.')
 
 # change directory to {new_dir}:
 os.chdir(str(new_dir))
-df = pd.DataFrame(columns=['sequence', 'motif_name', 'motif_count'])
-# define a dictionary to collect seq_name as the key and motif names and count as values (a nested dict)
-seq_motif_dict = {}
+
+time.sleep(1)
+print('You are now in the new folder.')
+
+##### END OF PROCESS STEP 4_1 #####
+
+##### PROCESS STEP 4_2 EXTRACT THE STATISTICS FROM THE REPORTS INTO A CSV FILE ####
+# define a dictionary to collect seq_name as the key and stat names and values as values (a nested dict)
+seq_stats_dict = {}
+
+# define regex for pattern matching (sigh... realising now that I could have done this for step 3...)
+# . matching any character except newline \d for digits, \s for white space, + for 1 or more of the instance
+pattern_mw = re.compile(r'Molecular weight = ([\d.]+)\s+Residues = (\d+)')
+pattern_average_residue_weight = re.compile(r'Average Residue Weight\s+=\s+([\d.]+)')
+pattern_charge = re.compile(r'Charge\s+=\s+([\d.]+)')
+pattern_isoelectric_point = re.compile(r'Isoelectric Point\s+=\s+([\d.]+)')
+pattern_a280_molar_extinction = re.compile(
+    r'A280 Molar Extinction Coefficients\s+=\s+(\d+)\s+\(reduced\)\s+(\d+)\s+\(cystine bridges\)')
+pattern_a280_extinction_1mgml = re.compile(
+    r'A280 Extinction Coefficients 1mg/ml\s+=\s+([\d.]+)\s+\(reduced\)\s+([\d.]+)\s+\(cystine bridges\)')
+
 # for each sequence in the folder, read the patmatmotifs report and extract the motif names and counts
 for seq in seq_list:
-    with open(str(seq)+".patmatmotifs",'r') as f:
+    with open(str(seq)+".pepstats",'r') as f:
         # initialise seq_name outside the loop and a dictionary to collect seq_name as the key and
-        # motif names and count as values
+        # basic statistics as values
         seq_name = None
         # initialise motif_name outside the loop, this is our inner dictionary
-        motif_name_count = {}
+        stats_data = {}
         # same as splitlines (ish)
         lines = f.readlines()
         for line in lines:
-            # if the line starts with '#    -sequence', then extract the sequence name
-            if line.startswith('#    -sequence'):
-                seq_name = line.split('-sequence')[1]
-                seq_name= seq_name.strip(".fasta\n")
+            # if the line starts with 'PEPSTATS of', then extract the sequence name
+            if line.startswith('PEPSTATS of'):
+                seq_name = line.split(' ')[2]
+                seq_name = seq_name.replace("'","").replace("[","")
+                seq_name = seq_name.rstrip('_')
 
-            # if 'Motif' is found, then extract the motif name and count of that motif
-            if 'Motif' in line:
-                # split the line into two parts: motif name and the count of it (+1 each time it's found)
-                motif_name = line.split(' = ')[1].strip()
-                # collect motif_name and increment the count in a dictionary,
-                # if the name does not exist, then insert the key with the value 0, which is the count for that motif
-                motif_name_count.setdefault(motif_name,0)
-                # increment by 1 for that motif_name
-                motif_name_count[motif_name] += 1
-        seq_motif_dict[seq_name] = motif_name_count
+            # extract information regarding pep statistics by the patterns defined
+            match_mw = pattern_mw.search(line)
+            match_average_residue_weight = pattern_average_residue_weight.search(line)
+            match_charge = pattern_charge.search(line)
+            match_isoelectric_point = pattern_isoelectric_point.search(line)
+            match_a280_molar_extinction = pattern_a280_molar_extinction.search(line)
+            match_a280_extinction_1mgml = pattern_a280_extinction_1mgml.search(line)
+
+            # collect the basic statistics in the dictionary stats_data
+            if match_mw:
+                stats_data['Molecular Weight'] = float(match_mw.group(1))
+                stats_data['Number of Residues'] = int(match_mw.group(2))
+            if match_average_residue_weight:
+                stats_data['Average Residue Weight'] = float(match_average_residue_weight.group(1))
+            if match_charge:
+                stats_data['Charge'] = float(match_charge.group(1))
+            if match_isoelectric_point:
+                stats_data['Isoelectric Point'] = float(match_isoelectric_point.group(1))
+            if match_a280_molar_extinction:
+                stats_data['A280 Molar Extinction (Reduced)'] = int(match_a280_molar_extinction.group(1))
+                stats_data['A280 Molar Extinction (Cysteine Bridges)'] = int(match_a280_molar_extinction.group(2))
+            if match_a280_extinction_1mgml:
+                stats_data['A280 Extinction 1mg/ml (Reduced)'] = float(match_a280_extinction_1mgml.group(1))
+                stats_data['A280 Extinction 1mg/ml (Cysteine Bridges)'] = float(match_a280_extinction_1mgml.group(2))
+
+        # create a nested dictionary to collect the stats_data names and values for each sequence
+        seq_stats_dict[seq_name] = stats_data
+
         # remember to close the file connection
         f.close()
 
-print('The reports for each sequenece in the fasta file with motifs from the PROSITE database'
-      'are saved in a new folder called', f'{new_dir}', '.')
-time.sleep(1)
-print('You are now in the new folder.')
-# convert the dictionary to a dataframe, with index as the column
-df = pd.DataFrame.from_dict(seq_motif_dict, orient='index')
-# fill the NaN values with 0
-df = df.fillna(0)
-# convert the dataframe to a csv file
-df.to_csv(f'{new_file_name}_motif_counts.csv',index=False)
-print('A summary file for all the sequences scanned with motifs from the PROSITE data base is saved'
-      'in a csv file called '+str(new_file_name)+'_motif_count.csv.')
+# convert the seq_stats_dict dictionary to a dataframe, with index as the column
+stats_df = pd.DataFrame.from_dict(seq_stats_dict, orient='index')
+# save the dataframe as a csv file
+stats_df.to_csv(f'{new_file_name}_stats.csv',index=True)
+
+print('These are the protein statistics:')
+print(stats_df)
+print('A summary file for all the sequence statistics is saved '
+      'in a csv file called '+str(new_file_name)+'_stats.csv.')
 time.sleep(0.5)
-print('Plotting this in a bar plot...')
 
+##### END OF PROCESS STEP 4_2 #####
 
+##### PROCESS STEP 4_3 PLOT THE STATISTICS IN BAR PLOTS ####
+print('Plotting this in bar plots...')
+# plotting this csv file
+plt.figure(figsize=(10,6))
+plt.subplot(3,3,1)
+stats_df['Molecular Weight'].plot(kind = 'bar', title = 'Molecular Weight')
+plt.subplot(3,3,2)
+stats_df['Number of Residues'].plot(kind = 'bar', title = 'Number of Residues')
+plt.subplot(3,3,3)
+stats_df['Isoelectric Point'].plot(kind = 'bar', title = 'Isoelectric Point')
+plt.subplot(3,3,4)
+stats_df['Charge'].plot(kind = 'bar', title = 'Charge')
+# adjust the subplot parameters so that they dont overlap each other
+plt.tight_layout()
+print('Opening the plot in a new window to show the plot, please close it after viewing to proceed...')
+plt.show()
+plt.savefig(f"{new_file_name}_stats.png", transparent=True)
 
-
-
-
-
-
-
-
+# inform the user where the report is saved
+print('The report plot is saved in a png file called '+str(new_file_name)+'_stats.png.')
+time.sleep(0.5)
+print(f'Going back to the sequence_{new_file_name} directory, and moving onto the next step... ')
+time.sleep(0.5)
+os.chdir("..") # PWD = sequence_{new_file_name}
 
 # work-up:
 print('Going back to the directory where we started...')
@@ -766,14 +818,6 @@ subprocess.call("rm -f *.fasta", shell=True)
 # go back to the original directory
 os.chdir("..") # PWD = where this script is stored.
 
-##### END OF PROCESS STEP 4_1 #####
-
+##### END OF PROCESS STEP 4_3 #####
 ##### END OF STEP 4 #####
-
 #############################################################
-
-#### TRASH BIN ####
-
-# header = (lines[0].replace(' ', '').replace("(", "").replace(")", "").replace("\'", "").
-#           replace(":", "").replace(",", "").replace("-", "").replace(":", "").replace("[","").replace("]","")
-#           )
