@@ -6,7 +6,7 @@ import re
 import numpy as np
 import pandas as pd
 import time
-
+import matplotlib.pyplot as plt
 
 # Sample PEPSTATS output
 pepstats_output = """
@@ -138,15 +138,50 @@ time.sleep(0.5)
 ##### PROCESS STEP 4_3 PLOT THE STATISTICS IN BAR PLOTS ####
 print('Plotting this in bar plots...')
 # plotting this csv file
-plt.figure(figsize=(10,6))
-plt.subplot(2,2,1)
-stats_df['Molecular Weight'].plot(kind = 'bar', title = 'Molecular Weight')
-plt.subplot(2,2,2)
-stats_df['Number of Residues'].plot(kind = 'bar', title = 'Number of Residues')
-plt.subplot(2,2,3)
-stats_df['Average Residue Weight'].plot(kind = 'bar', title = 'Average Residue Weight')
-plt.subplot(2,2,4)
-stats_df['Charge'].plot(kind = 'bar', title = 'Charge')
+plt.subplot(2, 3, 1)
+stats_df['Molecular Weight'].plot(kind='bar', title='Molecular Weight')
+plt.xlabel('Proteins')
+plt.ylabel('Molecular Weight')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 2)
+stats_df['Number of Residues'].plot(kind='bar', title='Number of Residues')
+plt.xlabel('Proteins')
+plt.ylabel('Number of Residues')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 3)
+stats_df['Average Residue Weight'].plot(kind='bar', title='Average Residue Weight')
+plt.xlabel('Proteins')
+plt.ylabel('Average Residue Weight')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 4)
+stats_df['Charge'].plot(kind='bar', title='Charge')
+plt.xlabel('Proteins')
+plt.ylabel('Charge')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 5)
+stats_df['Isoelectric Point'].plot(kind='bar', title='Isoelectric Point')
+plt.xlabel('Proteins')
+plt.ylabel('Isoelectric Point')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 6)
+stats_df['A280 Molar Extinction (Reduced)'].plot(kind='bar', title='A280 Molar Extinction (Reduced)')
+plt.xlabel('Proteins')
+plt.ylabel('A280 Molar Extinction (Reduced)')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+# add a title to the figure
+plt.suptitle("Protein Statistics", fontsize = 16)
 # adjust the subplot parameters so that they dont overlap each other
 plt.tight_layout()
 print('Opening the plot in a new window to show the plot, please close it after viewing to proceed...')

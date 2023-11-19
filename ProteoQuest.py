@@ -22,7 +22,6 @@ print("Welcome to the E-Search programme!"
       "\nThe user will be given an opportunity to refine the whole search term before any protein sequence is analysed."
       "\nYou can use CTRL + C to abort the programme at any point and restart the programme.")
 
-
 ##### PROCESS STEP 1_1: GET USER INITIAL INPUT OF TAXONOMY #####
 ## This step takes the user's TAXONOMY input and store it as a variable
 
@@ -133,6 +132,7 @@ def protein_esearch(search_term):
     # if the user does want to proceed, then we make a new folder called file_name and change directory to it
     if confirmation == True:
         os.makedirs(f"{file_name}",exist_ok=True)
+        # changing directory into the new folder
         os.chdir(f"{file_name}")
         os.getcwd()
 
@@ -717,7 +717,7 @@ seq_stats_dict = {}
 # define regex for pattern matching (sigh... realising now that I could have done this for step 3...)
 # . matching any character except newline \d for digits, \s for white space, + for 1 or more of the instance
 pattern_mw = re.compile(r'Molecular weight = ([\d.]+)\s+Residues = (\d+)')
-pattern_average_residue_weight = re.compile(r'Average Residue Weight\s+=\s+([\d.]+)')
+pattern_average_residue_weight = re.compile(r"Average Residue Weight\s+=\s+([\d.]+)")
 pattern_charge = re.compile(r'Charge\s+=\s+([\d.]+)')
 pattern_isoelectric_point = re.compile(r'Isoelectric Point\s+=\s+([\d.]+)')
 pattern_a280_molar_extinction = re.compile(
@@ -725,13 +725,13 @@ pattern_a280_molar_extinction = re.compile(
 pattern_a280_extinction_1mgml = re.compile(
     r'A280 Extinction Coefficients 1mg/ml\s+=\s+([\d.]+)\s+\(reduced\)\s+([\d.]+)\s+\(cystine bridges\)')
 
-# for each sequence in the folder, read the patmatmotifs report and extract the motif names and counts
+# for each sequence in the folder, read the pepstats report and extract the statistic name and values
 for seq in seq_list:
     with open(str(seq)+".pepstats",'r') as f:
         # initialise seq_name outside the loop and a dictionary to collect seq_name as the key and
         # basic statistics as values
         seq_name = None
-        # initialise motif_name outside the loop, this is our inner dictionary
+        # initialise stats_data outside the loop, this is our inner dictionary
         stats_data = {}
         # same as splitlines (ish)
         lines = f.readlines()
@@ -789,19 +789,55 @@ time.sleep(0.5)
 ##### PROCESS STEP 4_3 PLOT THE STATISTICS IN BAR PLOTS ####
 print('Plotting this in bar plots...')
 # plotting this csv file
-plt.figure(figsize=(10,6))
-plt.subplot(3,3,1)
-stats_df['Molecular Weight'].plot(kind = 'bar', title = 'Molecular Weight')
-plt.subplot(3,3,2)
-stats_df['Number of Residues'].plot(kind = 'bar', title = 'Number of Residues')
-plt.subplot(3,3,3)
-stats_df['Isoelectric Point'].plot(kind = 'bar', title = 'Isoelectric Point')
-plt.subplot(3,3,4)
-stats_df['Charge'].plot(kind = 'bar', title = 'Charge')
+plt.subplot(2, 3, 1)
+stats_df['Molecular Weight'].plot(kind='bar', title='Molecular Weight')
+plt.xlabel('Proteins')
+plt.ylabel('Molecular Weight')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 2)
+stats_df['Number of Residues'].plot(kind='bar', title='Number of Residues')
+plt.xlabel('Proteins')
+plt.ylabel('Number of Residues')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 3)
+stats_df['Average Residue Weight'].plot(kind='bar', title='Average Residue Weight')
+plt.xlabel('Proteins')
+plt.ylabel('Average Residue Weight')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 4)
+stats_df['Charge'].plot(kind='bar', title='Charge')
+plt.xlabel('Proteins')
+plt.ylabel('Charge')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 5)
+stats_df['Isoelectric Point'].plot(kind='bar', title='Isoelectric Point')
+plt.xlabel('Proteins')
+plt.ylabel('Isoelectric Point')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+plt.subplot(2, 3, 6)
+stats_df['A280 Molar Extinction (Reduced)'].plot(kind='bar', title='A280 Molar Extinction (Reduced)')
+plt.xlabel('Proteins')
+plt.ylabel('A280 Molar Extinction (Reduced)')
+plt.grid(True, axis='y')
+plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+
+# add a title to the figure
+plt.suptitle("Protein Statistics", fontsize = 16)
 # adjust the subplot parameters so that they dont overlap each other
 plt.tight_layout()
 print('Opening the plot in a new window to show the plot, please close it after viewing to proceed...')
 plt.show()
+# saving the figure
 plt.savefig(f"{new_file_name}_stats.png", transparent=True)
 
 # inform the user where the report is saved
@@ -817,6 +853,9 @@ print('Going back to the directory where we started...')
 subprocess.call("rm -f *.fasta", shell=True)
 # go back to the original directory
 os.chdir("..") # PWD = where this script is stored.
+print("Thank you for using this programme, exiting...")
+time.sleep(2)
+sys.exit(0)
 
 ##### END OF PROCESS STEP 4_3 #####
 ##### END OF STEP 4 #####
