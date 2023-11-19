@@ -13,13 +13,17 @@ import matplotlib.pyplot as plt
 # then it asks whether they'd like to search for a partial match or not.
 
 # welcome the user to the programme, introduce what the programme does and what input it will take from the user
-print("Welcome to the E-Search programme!"
+print("Welcome to the ProteoQuest programme!"
       "\nThis programme is used for searching protein sequences within the protein database"
       "\nIt will start by asking the user to specify their search terms step by step:"
       "\n1) The taxonomic group name"
       "\n2) The protein group"
       "\n3) Partial or not partial search"
       "\nThe user will be given an opportunity to refine the whole search term before any protein sequence is analysed."
+      "\nThe programme will then proceed to search the protein database for the specified search terms;"
+      "\nThen the programme will then proceed to determine and plot the level of conservation between protein sequences;"
+      "\nThen, it will scan the protein sequences of interest with motifs from the PROSITE database and plot any motifs found and their counts;"
+      "\nFinally, it will calculate protein statistics and plot anything meaningful in a bar plot"
       "\nYou can use CTRL + C to abort the programme at any point and restart the programme.")
 
 ##### PROCESS STEP 1_1: GET USER INITIAL INPUT OF TAXONOMY #####
@@ -563,7 +567,8 @@ seq_data_dict = extract_seq(new_file_name)
 print('\nWe will now scan the protein sequences with motifs from the PROSITE database.'
       '\nPROSITE is a database of protein families and domains with annotated patterns. '
       '\nIt provides conserved motifs, functional insights, and cross-references to aid in protein analysis. '
-      '\nIt is usually used for predicting protein functions and guiding experimental studies.')
+      '\nIt is usually used for predicting protein functions and guiding experimental studies.'
+      '\n***Please note: this only works for protein sequences, trying with anything else will return error! ***')
 
 time.sleep(0.5)
 print("Preparing your report, please wait...")
@@ -789,42 +794,28 @@ time.sleep(0.5)
 ##### PROCESS STEP 4_3 PLOT THE STATISTICS IN BAR PLOTS ####
 print('Plotting this in bar plots...')
 # plotting this csv file
-plt.subplot(2, 3, 1)
+plt.subplot(2, 2, 1)
 stats_df['Molecular Weight'].plot(kind='bar', title='Molecular Weight')
 plt.xlabel('Proteins')
 plt.ylabel('Molecular Weight')
 plt.grid(True, axis='y')
 plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
 
-plt.subplot(2, 3, 2)
-stats_df['Number of Residues'].plot(kind='bar', title='Number of Residues')
-plt.xlabel('Proteins')
-plt.ylabel('Number of Residues')
-plt.grid(True, axis='y')
-plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
-
-plt.subplot(2, 3, 3)
-stats_df['Average Residue Weight'].plot(kind='bar', title='Average Residue Weight')
-plt.xlabel('Proteins')
-plt.ylabel('Average Residue Weight')
-plt.grid(True, axis='y')
-plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
-
-plt.subplot(2, 3, 4)
+plt.subplot(2, 2, 2)
 stats_df['Charge'].plot(kind='bar', title='Charge')
 plt.xlabel('Proteins')
-plt.ylabel('Charge')
+plt.ylabel('MCharge')
 plt.grid(True, axis='y')
 plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
 
-plt.subplot(2, 3, 5)
+plt.subplot(2, 2, 3)
 stats_df['Isoelectric Point'].plot(kind='bar', title='Isoelectric Point')
 plt.xlabel('Proteins')
 plt.ylabel('Isoelectric Point')
 plt.grid(True, axis='y')
 plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
 
-plt.subplot(2, 3, 6)
+plt.subplot(2, 2, 4)
 stats_df['A280 Molar Extinction (Reduced)'].plot(kind='bar', title='A280 Molar Extinction (Reduced)')
 plt.xlabel('Proteins')
 plt.ylabel('A280 Molar Extinction (Reduced)')
@@ -853,7 +844,7 @@ print('Going back to the directory where we started...')
 subprocess.call("rm -f *.fasta", shell=True)
 # go back to the original directory
 os.chdir("..") # PWD = where this script is stored.
-print("Thank you for using this programme, exiting...")
+print("Thank you for using the ProteoQuest programme, exiting...")
 time.sleep(2)
 sys.exit(0)
 
