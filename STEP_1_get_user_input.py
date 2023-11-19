@@ -107,8 +107,8 @@ def protein_esearch(search_term):
             print("This is either more than 1000 results or did not return any result. Please refine your search term."
                   "\nYour search term was", search_term)
             time.sleep(0.5)
-            search_term = input("The search term should be in the format of "
-                                "\nOrganism[ORGN] AND Protein[PROT]"
+            search_term = input("The search term should be in the format of:"
+                                "\n     Organism[ORGN] AND Protein[PROT]"
                                 "\nYou can also specify a non-partial search term, e.g., Organism[ORGN] AND Protein[PROT] NOT PARTIAL"
                                 "\nPlease enter a new search term:")
         else:
@@ -118,6 +118,8 @@ def protein_esearch(search_term):
 
     # save the output to a file
     print("Your search term returned ", seq_count, " results.")
+    time.sleep(1)
+    print("Proceeding to create a fasta sequence file for the search results...")
 
     # the file_name cannot contain any special characters or spaces, so remove any from the search term
     file_name = search_term.replace(" ", "_")
@@ -441,7 +443,7 @@ def define_min_and_max_seq_len():
             time.sleep(0.5)
             # error trap: if max and min range is not appropriate
             if int(trimmed_seq_count) == 0 or "not found" in trimmed_seq_count or 'Error' in trimmed_seq_count:
-                print("Please enter a valid minimum and maximum length. (Do NOT proceed!)")
+                print("Please enter a valid minimum and maximum length. (Do NOT proceed - bad things will happen!)")
                 time.sleep(0.5)
 
             # ask whether the user would like to proceed with the entered values
@@ -508,8 +510,7 @@ else:
     print("Please enter integers for the minimum and maximum length of the protein sequences you'd like to use in the conservation analysis.")
     sys.exit(1)
 
-
-
+##### END OF PROCESS STEP 2_2 #####
 ##### END OF STEP 2 #####
 
 ##### STEP 3 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE #####
@@ -554,7 +555,6 @@ def extract_seq(file_name):
 
 # executing seq_data_dict and saving the dictionary as a global variable
 seq_data_dict = extract_seq(new_file_name)
-
 ##### END OF PROCESS STEP 3_1 ####
 
 ##### PROCESS STEP 3_2 SCANNING THE PROTEIN SEQUENCE WITH MOTIFS FROM THE PROSITE DATABASE #####
@@ -660,29 +660,115 @@ plt.ylabel('Motif Count')
 plt.title('Motif Counts in Each Sequence')
 plt.legend(title='Motif',bbox_to_anchor=(0.8, 1), loc='upper right',fontsize='small')
 plt.savefig(f"{new_file_name}.png", transparent=True)
+print('Opening the plot in a new window to show the plot, please close it after viewing to proceed...')
 plt.show()
 # inform the user where the report is saved
 print('The report is saved in a png file called '+str(new_file_name)+'.png.')
 time.sleep(0.5)
-print('Going back to the directory where we started...')
-
-# delete all the fasta files in the sequences_{new_file_name} folder
+print(f'Going back to the sequence_{new_file_name} directory, and moving onto the next step... ')
+time.sleep(0.5)
 os.chdir("..") # PWD = sequence_{new_file_name}
-subprocess.call("rm -f *.fasta", shell=True)
-# go back to the original directory
-os.chdir("..") # PWD = where this script is stored.
 
 ##### END OF PROCESS STEP 3_2 #####
 ##### END OF STEP 3 #####
 
 ##### STEP 4  #####
-##### PROCESS STEP 4_1  ####
+##### PROCESS STEP 4_1 RUN PEPSTATS TO CALCULATE THE STATISTICS OF THE PROTEIN PROPERTIES ####
+#TODO: introducing this section and pepstats and things we'll do here
+
+# executing seq_data_dict and saving the dictionary as a global variable
+seq_data_dict = extract_seq(new_file_name) #TODO:no need to do this again
+
+# get the list of all the sequences in the folder
+seq_list = subprocess.getoutput("ls *.fasta").split('\n') #TODO:no need to do this again
+
+# create a new directory to save the outfiles from patmatmotifs
+new_dir = str("pepstats_"+str(new_file_name))
+
+# 'exist_ok = True' makes sure no error is returned if the directory already exists
+os.makedirs(f"{new_dir}",exist_ok=True)
+
+#TODO: modify the section to suit
+# for loop to scan each sequence with pepstats
+for seq in seq_list:
+    # use pepstats to
+    # scan the protein sequences with motifs form the PROSITE database and save the report as {seq}.patmatmotifs
+    subprocess.call("patmatmotifs -sequence "+ str(seq)
+                    +" -outfile "+str(seq)+".patmatmotifs", shell = True)
+
+
+# move every patmatmotifs report to the new directory
+subprocess.call("mv *.patmatmotifs ./"+new_dir, shell=True)
+
+# change directory to {new_dir}:
+os.chdir(str(new_dir))
+df = pd.DataFrame(columns=['sequence', 'motif_name', 'motif_count'])
+# define a dictionary to collect seq_name as the key and motif names and count as values (a nested dict)
+seq_motif_dict = {}
+# for each sequence in the folder, read the patmatmotifs report and extract the motif names and counts
+for seq in seq_list:
+    with open(str(seq)+".patmatmotifs",'r') as f:
+        # initialise seq_name outside the loop and a dictionary to collect seq_name as the key and
+        # motif names and count as values
+        seq_name = None
+        # initialise motif_name outside the loop, this is our inner dictionary
+        motif_name_count = {}
+        # same as splitlines (ish)
+        lines = f.readlines()
+        for line in lines:
+            # if the line starts with '#    -sequence', then extract the sequence name
+            if line.startswith('#    -sequence'):
+                seq_name = line.split('-sequence')[1]
+                seq_name= seq_name.strip(".fasta\n")
+
+            # if 'Motif' is found, then extract the motif name and count of that motif
+            if 'Motif' in line:
+                # split the line into two parts: motif name and the count of it (+1 each time it's found)
+                motif_name = line.split(' = ')[1].strip()
+                # collect motif_name and increment the count in a dictionary,
+                # if the name does not exist, then insert the key with the value 0, which is the count for that motif
+                motif_name_count.setdefault(motif_name,0)
+                # increment by 1 for that motif_name
+                motif_name_count[motif_name] += 1
+        seq_motif_dict[seq_name] = motif_name_count
+        # remember to close the file connection
+        f.close()
+
+print('The reports for each sequenece in the fasta file with motifs from the PROSITE database'
+      'are saved in a new folder called', f'{new_dir}', '.')
+time.sleep(1)
+print('You are now in the new folder.')
+# convert the dictionary to a dataframe, with index as the column
+df = pd.DataFrame.from_dict(seq_motif_dict, orient='index')
+# fill the NaN values with 0
+df = df.fillna(0)
+# convert the dataframe to a csv file
+df.to_csv(f'{new_file_name}_motif_counts.csv',index=False)
+print('A summary file for all the sequences scanned with motifs from the PROSITE data base is saved'
+      'in a csv file called '+str(new_file_name)+'_motif_count.csv.')
+time.sleep(0.5)
+print('Plotting this in a bar plot...')
 
 
 
 
-# TODO: ask the user if they want to save all the files into a new directory
-# if true, save all the files into a new directory
+
+
+
+
+
+
+
+# work-up:
+print('Going back to the directory where we started...')
+# deleting the individual fasta files in the sequences_{new_file_name} folder
+subprocess.call("rm -f *.fasta", shell=True)
+# go back to the original directory
+os.chdir("..") # PWD = where this script is stored.
+
+##### END OF PROCESS STEP 4_1 #####
+
+##### END OF STEP 4 #####
 
 #############################################################
 
@@ -691,8 +777,3 @@ os.chdir("..") # PWD = where this script is stored.
 # header = (lines[0].replace(' ', '').replace("(", "").replace(")", "").replace("\'", "").
 #           replace(":", "").replace(",", "").replace("-", "").replace(":", "").replace("[","").replace("]","")
 #           )
-
-
-    # TODO: print and save 1) the names of any known motifs found with the sequence (header) 2) HitCount 3) the number of times each motif was found (if applicable)
-    # TODO: 4) the positions of each motif found in the sequence 5) the length of the motif found
-    # TODO: save 1-5 in a pandas dataframe and save the dataframe as file_name.patmatmotifs.csv
