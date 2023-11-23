@@ -690,7 +690,7 @@ plt.xlabel('Sequence Name')
 plt.ylabel('Motif Count')
 plt.title('Motif Counts in Each Sequence')
 plt.legend(title='Motif',bbox_to_anchor=(0.8, 1), loc='upper right',fontsize='small')
-plt.savefig(f"{new_file_name}.png", transparent=True)
+plt.savefig(f"{new_file_name}.png")
 print('Opening the plot in a new window to show the plot, please close it after viewing to proceed...')
 plt.show()
 # inform the user where the report is saved
@@ -824,46 +824,52 @@ time.sleep(0.5)
 print('Plotting this in bar plots...')
 time.sleep(0.5)
 # plotting this csv file
-plt.subplot(2, 2, 1)
+# Plotting Molecular Weight
 stats_df['Molecular Weight'].plot(kind='bar', title='Molecular Weight')
 plt.xlabel('Proteins')
 plt.ylabel('Molecular Weight')
 plt.grid(True, axis='y')
 plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+plt.suptitle("Protein Statistics - Molecular Weight", fontsize=16)
+plt.tight_layout()
+plt.savefig(f"{new_file_name}_molecular_weight.png")
+plt.show()
 
-plt.subplot(2, 2, 2)
+# Plotting Charge
 stats_df['Charge'].plot(kind='bar', title='Charge')
 plt.xlabel('Proteins')
-plt.ylabel('MCharge')
+plt.ylabel('Charge')
 plt.grid(True, axis='y')
 plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+plt.suptitle("Protein Statistics - Charge", fontsize=16)
+plt.tight_layout()
+plt.savefig(f"{new_file_name}_charge.png")
+plt.show()
 
-plt.subplot(2, 2, 3)
+# Plotting Isoelectric Point
 stats_df['Isoelectric Point'].plot(kind='bar', title='Isoelectric Point')
 plt.xlabel('Proteins')
 plt.ylabel('Isoelectric Point')
 plt.grid(True, axis='y')
 plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
+plt.suptitle("Protein Statistics - Isoelectric Point", fontsize=16)
+plt.tight_layout()
+plt.savefig(f"{new_file_name}_isoelectric_point.png")
+plt.show()
 
-plt.subplot(2, 2, 4)
+# Plotting A280 Molar Extinction (Reduced)
 stats_df['A280 Molar Extinction (Reduced)'].plot(kind='bar', title='A280 Molar Extinction (Reduced)')
 plt.xlabel('Proteins')
 plt.ylabel('A280 Molar Extinction (Reduced)')
 plt.grid(True, axis='y')
 plt.xticks(rotation=45, ha='right')  # rotate x-axis labels for better visibility
-
-# add a title to the figure
-plt.suptitle("Protein Statistics", fontsize = 16)
-# adjust the subplot parameters so that they dont overlap each other
+plt.suptitle("Protein Statistics - A280 Molar Extinction (Reduced)", fontsize=16)
 plt.tight_layout()
-print('Opening the plot in a new window to show the plot, please close it after viewing to proceed...')
-time.sleep(0.5)
+plt.savefig(f"{new_file_name}_a280_molar_extinction.png")
 plt.show()
-# saving the figure
-plt.savefig(f"{new_file_name}_stats.png", transparent=True)
 
 # inform the user where the report is saved
-print('The report plot is saved in a png file called '+str(new_file_name)+'_stats.png.')
+print('The report plots are saved in a png file called '+str(new_file_name)+'_stats.png.')
 time.sleep(0.5)
 print(f'Going back to the sequence_{new_file_name} directory, and moving onto the next step... ')
 time.sleep(0.5)
